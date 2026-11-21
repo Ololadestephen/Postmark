@@ -1,5 +1,6 @@
 import { lazy, Suspense, useRef, useState } from "react";
 import { requestWallet, useWalletWanted } from "./walletIntent";
+import { prefetchWalletModule } from "../prefetch";
 
 const ConnectWallet = lazy(() => import("../wallet/ConnectWallet"));
 const BUTTON = "rounded-md bg-deep px-4 py-1.5 text-sm font-medium text-paper hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-deep disabled:opacity-50";
@@ -13,6 +14,7 @@ export function DeferredConnect() {
   if (!wanted) {
     return (
       <button type="button" aria-haspopup="dialog" className={BUTTON}
+        onPointerEnter={prefetchWalletModule} onFocus={prefetchWalletModule}
         onClick={() => { clicked.current = true; setOpenOnLoad(true); requestWallet(); }}>
         Connect wallet
       </button>

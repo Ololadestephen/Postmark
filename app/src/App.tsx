@@ -1,4 +1,6 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
+import { fetchIndex } from "./chain/indexer";
+import { routeLoaders, warmUp } from "./prefetch";
 import { Routes, Route } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { IndexerProvider } from "./chain/IndexerProvider";
@@ -9,12 +11,12 @@ import { Shell } from "./components/Shell";
 import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 
-const Explore = lazy(() => import("./pages/Explore"));
-const BountyDetail = lazy(() => import("./pages/BountyDetail"));
-const Create = lazy(() => import("./pages/Create"));
-const Me = lazy(() => import("./pages/Me"));
-const Signer = lazy(() => import("./pages/Signer"));
-const Start = lazy(() => import("./pages/Start"));
+const Explore = lazy(routeLoaders["/explore"]);
+const BountyDetail = lazy(routeLoaders["/bounty"]);
+const Create = lazy(routeLoaders["/create"]);
+const Me = lazy(routeLoaders["/me"]);
+const Signer = lazy(routeLoaders["/signer"]);
+const Start = lazy(routeLoaders["/start"]);
 const Review = lazy(() => import("./pages/Review"));
 
 const queryClient = new QueryClient({
@@ -26,6 +28,7 @@ const B = ({ children }: { children: React.ReactNode }) => (
 );
 
 export default function App() {
+  useEffect(() => { warmUp(() => { void queryClient.prefetchQuery({ queryKey: ["index"], queryFn: fetchIndex, staleTime: 30_000 }); }); }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>

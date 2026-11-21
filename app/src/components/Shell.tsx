@@ -5,6 +5,7 @@ import { useFeedStatus } from "../chain/IndexerProvider";
 import { useBlockNumber } from "../hooks/queries";
 import { explorerBlock } from "../chain/config";
 import { Logo } from "./Logo";
+import { prefetchRoute } from "../prefetch";
 import { ShinyBar } from "./motion";
 import { PixelBand } from "./PixelBand";
 
@@ -69,7 +70,10 @@ export function Shell({ children }: { children?: ReactNode }) {
               <span className="text-xl font-semibold tracking-tight">Postmark</span>
             </Link>
             <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
-              {NAV.map((n) => <NavLink key={n.to} to={n.to} className={desktopLink}>{n.label}</NavLink>)}
+              {NAV.map((n) => (
+                <NavLink key={n.to} to={n.to} className={desktopLink}
+                  onMouseEnter={() => prefetchRoute(n.to)} onFocus={() => prefetchRoute(n.to)}>{n.label}</NavLink>
+              ))}
             </nav>
           </div>
           <div className="flex min-w-0 items-center gap-3">
