@@ -28,33 +28,40 @@ export interface IndexerState {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** getLogs over [from,to], halving the range on RPC limits and backing off. */
-export async function getLogsChunked(
-  fromBlock: bigint, toBlock: bigint,
-): Promise<Log[]> {
-  const out: Log[] = [];
-  let chunk = 50_000n;
-  let start = fromBlock;
-  while (start <= toBlock) {
-    const end = start + chunk - 1n > toBlock ? toBlock : start + chunk - 1n;
-    try {
-      const logs = await httpClient.getLogs({
-        address: ESCROW_ADDRESS, fromBlock: start, toBlock: end,
-      });
-      out.push(...logs);
-      start = end + 1n;
-      await sleep(60);
-    } catch (e) {
-      if (chunk > 500n) { chunk /= 5n; continue; }
-      await sleep(1500); // one retry at min chunk before giving up
-      const logs = await httpClient.getLogs({
-        address: ESCROW_ADDRESS, fromBlock: start, toBlock: end,
-      });
-      out.push(...logs);
-      start = end + 1n;
+/** Largest block range the RPC has accepted so far; it refuses 50k-block scans, so start where it works. */
+let knownChunk = 10_000n;
+const CONCURRENCY = 4;
+
+async function getRange(escrow: `0x${string}`, from: bigint, to: bigint): Promise<Log[]> {
+  try {
+    return await httpClient.getLogs({ address: escrow, fromBlock: from, toBlock: to });
+  } catch (e) {
+    const size = to - from + 1n;
+    if (size > 500n) { // halve the range and remember what the node accepts
+      knownChunk = size / 2n > 500n ? size / 2n : 500n;
+      const mid = from + size / 2n;
+      return [...await getRange(escrow, from, mid - 1n), ...await getRange(escrow, mid, to)];
     }
+    await sleep(1500); // one retry at the minimum chunk before giving up
+    return httpClient.getLogs({ address: escrow, fromBlock: from, toBlock: to });
   }
-  return out;
+}
+
+/** getLogs over [fromBlock,toBlock] in chunks fetched a few at a time, halving the range on RPC limits. */
+export async function getLogsChunked(fromBlock: bigint, toBlock: bigint): Promise<Log[]> {
+  const ranges: [bigint, bigint][] = [];
+  for (let s = fromBlock; s <= toBlock; s += knownChunk) {
+    ranges.push([s, s + knownChunk - 1n > toBlock ? toBlock : s + knownChunk - 1n]);
+  }
+  const results: Log[][] = new Array(ranges.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, ranges.length) }, async () => {
+    while (next < ranges.length) {
+      const i = next++;
+      results[i] = await getRange(ESCROW_ADDRESS, ranges[i]![0], ranges[i]![1]);
+    }
+  }));
+  return results.flat();
 }
 
 /** Decode raw logs into typed escrow events, sorted canonically. */
@@ -87,9 +94,30 @@ export function indexEvents(events: EscrowLog[], toBlock: bigint): IndexerState 
   return { events, metaById, bountyIds, lastBlock: toBlock };
 }
 
-/** Fetch the full event history from the deploy block. */
+const CACHE_KEY = `pm-index:${ESCROW_ADDRESS.toLowerCase()}`;
+const REORG_OVERLAP = 20n;
+const tagBig = (_k: string, v: unknown) => (typeof v === "bigint" ? { $b: v.toString() } : v);
+const untagBig = (_k: string, v: unknown) =>
+  (v && typeof v === "object" && "$b" in (v as object) ? BigInt((v as { $b: string }).$b) : v);
+const logId = (l: Log) => `${l.transactionHash}:${l.logIndex}`;
+
+function loadCached(): { head: bigint; logs: Log[] } | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? JSON.parse(raw, untagBig) as { head: bigint; logs: Log[] } : null;
+  } catch { return null; }
+}
+
+/** The event history: the first visit scans from the deploy block; later visits scan only what is new
+ * (with a small reorg overlap) on top of the copy kept in localStorage. */
 export async function fetchIndex(): Promise<IndexerState> {
   const head = await httpClient.getBlockNumber();
-  const logs = await getLogsChunked(DEPLOY_BLOCK, head);
+  const cached = loadCached();
+  const from = cached ? (cached.head > REORG_OVERLAP ? cached.head - REORG_OVERLAP : 0n) + 1n : DEPLOY_BLOCK;
+  const fresh = from <= head ? await getLogsChunked(from < DEPLOY_BLOCK ? DEPLOY_BLOCK : from, head) : [];
+  const byId = new Map<string, Log>();
+  for (const l of [...(cached?.logs ?? []), ...fresh]) byId.set(logId(l), l);
+  const logs = [...byId.values()];
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ head, logs }, tagBig)); } catch { /* storage full or blocked */ }
   return indexEvents(decodeLogs(logs), head);
 }
