@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { WagmiProvider } from "wagmi";
+import { WagmiContext } from "wagmi";
 import { reconnect } from "wagmi/actions";
 import { wagmiConfig } from "./wagmi";
 
@@ -29,9 +29,11 @@ async function silentReconnect() {
   }
 }
 
-/** Mounts the wagmi context for a lazily loaded subtree. Multiple roots share
- * the same config store, so state stays consistent across chunks. */
+/** Mounts the wagmi context for a lazily loaded subtree. Multiple roots share the same config store, so
+ * state stays consistent across chunks. This is `WagmiContext.Provider` rather than `WagmiProvider`: that
+ * component's Hydrate step resets every live connection when reconnect-on-mount is off, which logged a
+ * connected user out whenever they navigated to a page with its own root (Dashboard, Create). */
 export default function WalletRoot({ children }: { children: React.ReactNode }) {
   useEffect(() => { void silentReconnect(); }, []);
-  return <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>{children}</WagmiProvider>;
+  return <WagmiContext.Provider value={wagmiConfig}>{children}</WagmiContext.Provider>;
 }

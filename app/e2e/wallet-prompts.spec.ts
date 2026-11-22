@@ -78,3 +78,14 @@ test("a cancelled connect is not retried on reload; Connect makes only the expec
   await page.reload({ waitUntil: "networkidle" }); await settle(page);
   expect((await interactive(page)).filter((c) => INTERACTIVE.test(c))).toEqual([]);
 });
+
+test("a connected wallet stays connected when navigating to a page with its own wallet root", async ({ page }) => {
+  await boot(page);
+  await page.goto("/explore", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Connect wallet" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "MetaMask" }).click();
+  await expect(page.getByRole("button", { name: /0x478F…c4B6/ })).toBeVisible();
+  await page.getByRole("link", { name: "Dashboard", exact: true }).first().click();
+  await expect(page.getByRole("tab", { name: "Funded" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/Connect an EVM wallet to see your funded/)).toHaveCount(0);
+});
