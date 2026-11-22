@@ -42,6 +42,13 @@ async function accountSeq(cosmos: string) {
   return { accountNumber: BigInt(a.account_number), sequence: BigInt(a.sequence) };
 }
 
+const BASE_FEE_WEI = 100_000_000_000n;
+
+/** Gas and fee fields for every bot transaction: the fee cap the window was sized with, never viem's own. */
+export const txOptions = (gas: bigint) => ({
+  gas, maxFeePerGas: FEE_CAP_WEI, maxPriorityFeePerGas: FEE_CAP_WEI - BASE_FEE_WEI,
+});
+
 /** uqor cap for a window that will send these gas limits (value is always 0 for verifier actions). */
 export function windowMaxValueUqor(gasLimits: bigint[]): string {
   const fees = gasLimits.reduce((s, g) => s + g * FEE_CAP_WEI, 0n);

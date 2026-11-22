@@ -15,7 +15,7 @@ import {
   chainNow, chainVerdictMessage, gasLimitFor, loadWorkMeta, publicClient, readBounty, readNextId, simulate, walletFor,
   request, type Action,
 } from "./chain";
-import { openWindow } from "./window";
+import { openWindow, txOptions } from "./window";
 import { mergeVerdictComments, postingTarget, readTargets } from "./boards";
 
 export interface Row { id: string; state: string; decision: string; action: string }
@@ -132,7 +132,7 @@ export async function run(cfg: BotConfig, gh: GhApi, log: (line: string) => void
     const session = await openWindow(cfg.verifierKey, cfg.pqcRecoveryCode, cfg.escrow, runnable.map((r) => r.gas));
     try {
       for (const r of runnable) {
-        const hash = await wallet.writeContract({ ...request(cfg.escrow, r.a), gas: r.gas } as never);
+        const hash = await wallet.writeContract({ ...request(cfg.escrow, r.a), ...txOptions(r.gas) } as never);
         const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 120_000 });
         r.row.action = `${r.a.kind} ${receipt.status === "success" ? "ok" : "REVERTED"} ${hash}`;
         log(`#${r.a.id} ${r.row.action}`);
