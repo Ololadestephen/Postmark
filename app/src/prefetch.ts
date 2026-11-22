@@ -8,6 +8,7 @@ export const routeLoaders = {
   "/signer": () => import("./pages/Signer"),
   "/start": () => import("./pages/Start"),
   "/verifiers/join": () => import("./pages/VerifierJoin"),
+  "/lab/qorex-native": () => import("./pages/LabQorexNative"),
 } as const;
 
 const loadWalletModule = () => import("./wallet/ConnectWallet");
