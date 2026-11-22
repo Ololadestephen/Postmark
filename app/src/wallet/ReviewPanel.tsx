@@ -1,7 +1,10 @@
 // The verifier tool: check the claim, check the PR, build a verdict, sign it
 // through a PqSigner, merge bundles and relay the quorum — all against chain
 // truth (nonce, claimRound, dispute hashes are never user input).
+import { Link } from "react-router";
 import { useAccount } from "wagmi";
+import { AddressLink, Card, SectionLabel } from "../components/ui";
+import { useBountyRole } from "./role";
 import WalletRoot from "./WalletRoot";
 import { useTxAction } from "../hooks/useTxAction";
 import { useToast } from "../components/Toasts";
@@ -23,7 +26,7 @@ import { BundleCard } from "./review/BundleCard";
 import type { Bounty } from "../chain/client";
 import type { BountyMeta } from "../chain/indexer";
 
-function ReviewPanelBody({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta: BountyMeta }) {
+function ReviewTool({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta: BountyMeta }) {
   const { address } = useAccount();
   const qorex = useQorex();
   const preferLocal = usePrefersLocalSigner();
@@ -95,6 +98,37 @@ function ReviewPanelBody({ id, bounty, meta }: { id: bigint; bounty: Bounty; met
   );
 }
 
+function ReviewGate(props: { id: bigint; bounty: Bounty; meta: BountyMeta }) {
+  const { address } = useAccount();
+  const { role } = useBountyRole(props.bounty);
+  if (!address) {
+    return (
+      <Card>
+        <SectionLabel>verifiers only</SectionLabel>
+        <p className="mt-2 text-sm text-charcoal">Connect a wallet to open the review tool. Only this bounty's three verifiers sign verdicts here.</p>
+        <button type="button" onClick={() => document.querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]')?.click()}
+          className="mt-3 rounded-lg bg-deep px-4 py-2 text-sm font-medium text-paper hover:brightness-110">
+          Connect wallet
+        </button>
+      </Card>
+    );
+  }
+  if (role !== "verifier") {
+    return (
+      <Card>
+        <SectionLabel>verifiers only</SectionLabel>
+        <p className="mt-2 text-sm text-charcoal">Only this bounty's three verifiers sign verdicts here.</p>
+        <ul className="mt-2 space-y-1">
+          {props.bounty.verifiers.map((v) => (
+            <li key={v}><AddressLink address={v} className="font-mono text-xs hover:text-deep" /></li>))}
+        </ul>
+        <Link to={`/bounty/${props.id}`} className="mt-3 inline-block text-sm text-deep underline underline-offset-4">← back to the bounty</Link>
+      </Card>
+    );
+  }
+  return <ReviewTool {...props} />;
+}
+
 export default function ReviewPanel(props: { id: bigint; bounty: Bounty; meta: BountyMeta }) {
-  return <WalletRoot><ReviewPanelBody {...props} /></WalletRoot>;
+  return <WalletRoot><ReviewGate {...props} /></WalletRoot>;
 }

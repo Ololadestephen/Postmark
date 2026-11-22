@@ -72,11 +72,11 @@ describe("ClaimPanel gating", () => {
   it("refuses funders and verifiers", () => {
     m.address = FUNDER;
     const { unmount } = render(<ClaimPanel id={7n} bounty={bounty} meta={META} />);
-    expect(screen.getByText(/cannot claim their own bounty/)).toBeInTheDocument();
+    expect(screen.getByText(/This is your bounty\. Share the link/)).toBeInTheDocument();
     unmount();
-    m.address = VERIFIERS[0];
+    m.address = VERIFIERS[1];
     render(<ClaimPanel id={7n} bounty={bounty} meta={META} />);
-    expect(screen.getByText(/cannot claim their own bounty/)).toBeInTheDocument();
+    expect(screen.getByText(/You're verifier #1 on this bounty, so you can't claim it/)).toBeInTheDocument();
   });
 
   it("closes after the deadline and when the claim window no longer fits", () => {

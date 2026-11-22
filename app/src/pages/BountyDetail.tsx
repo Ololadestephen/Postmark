@@ -24,6 +24,8 @@ const TxActions = lazy(() => import("../wallet/TxActions"));
 const ClaimPanel = lazy(() => import("../wallet/ClaimPanel"));
 const ClaimedNote = lazy(() => import("../wallet/ClaimedNote"));
 const FunderShare = lazy(() => import("../wallet/FunderShare"));
+const VerifierReviewLink = lazy(() => import("../wallet/VerifierReviewLink"));
+const PaidNote = lazy(() => import("../wallet/PaidNote"));
 
 /** Static stand-in for the action panels: no wallet code loads until the visitor asks for it. */
 function WalletPrompt({ bounty: b }: { bounty: Bounty }) {
@@ -118,16 +120,12 @@ export default function BountyDetail() {
                 </div>
               )}
               {b.state === STATE.Claimed && (
-                wanted ? <Suspense fallback={null}><ClaimedNote bounty={b} /></Suspense> : null
+                wanted ? <Suspense fallback={null}><ClaimedNote bounty={b} meta={meta} /></Suspense> : null
               )}
-              {(b.state === STATE.Claimed || b.state === STATE.Disputed) && (
-                <Link to={`/bounty/${id}/review`}
-                  className="block rounded-xl border border-ink/10 bg-mustard/40 p-4 text-sm font-medium text-ink hover:bg-mustard/60">
-                  {b.state === STATE.Disputed
-                    ? "This verdict is disputed — open the review tool to build a resolution →"
-                    : "Open the verifier review tool → check the claim, sign a verdict, merge the quorum →"}
-                </Link>
+              {wanted && (b.state === STATE.Claimed || b.state === STATE.Disputed) && (
+                <Suspense fallback={null}><VerifierReviewLink id={id} bounty={b} /></Suspense>
               )}
+              {wanted && b.state === STATE.Paid && <Suspense fallback={null}><PaidNote bounty={b} /></Suspense>}
               {b.state === STATE.Pending && <PendingVerdict id={id} bounty={b} meta={meta} />}
               {b.state === STATE.Disputed && <DisputedBanner bounty={b} />}
               {(b.state === STATE.Paid || b.state === STATE.Refunded) && <Ruling state={b.state} events={events} />}

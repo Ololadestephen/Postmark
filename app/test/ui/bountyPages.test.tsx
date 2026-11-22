@@ -23,6 +23,8 @@ vi.mock("../../src/wallet/ClaimPanel", () => ({ default: () => <p>claim panel</p
 vi.mock("../../src/wallet/ClaimedNote", () => ({ default: () => <p>claimed note</p> }));
 vi.mock("../../src/wallet/FunderShare", () => ({ default: () => <p>funder share</p> }));
 vi.mock("../../src/wallet/DisputePanel", () => ({ default: () => <p>dispute panel</p> }));
+vi.mock("../../src/wallet/VerifierReviewLink", () => ({ default: () => <p>verifier review link</p> }));
+vi.mock("../../src/wallet/PendingActions", () => ({ default: () => <p>pending actions</p> }));
 vi.mock("../../src/wallet/ReviewPanel", () => ({ default: () => <p>review panel</p> }));
 
 import BountyDetail from "../../src/pages/BountyDetail";
@@ -49,6 +51,7 @@ const event = (eventName: string, args: Record<string, unknown>, block = 100n): 
   ({ eventName, args, blockNumber: block, transactionHash: `0x${"cd".repeat(32)}`, logIndex: 0 }) as unknown as EscrowLog;
 
 beforeEach(() => {
+  resetWalletIntent();
   github.item = { data: undefined, error: null, isPending: true };
 });
 
@@ -113,7 +116,22 @@ describe("BountyDetail by state", () => {
     setRoute(makeBounty({ state: 1, payee: CLAIMANT, claimRound: 1n, claimExpiresAt: 4_000_000_000n }));
     renderApp(<BountyDetail />);
     expect(await screen.findByText("claimed note")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /verifier review tool/ })).toHaveAttribute("href", "/bounty/7/review");
+    expect(await screen.findByText("verifier review link")).toBeInTheDocument();
+  });
+
+  it("Claimed: nobody sees the review link until a wallet is wanted", () => {
+    setRoute(makeBounty({ state: 1, payee: CLAIMANT, claimRound: 1n, claimExpiresAt: 4_000_000_000n }));
+    renderApp(<BountyDetail />);
+    expect(screen.queryByText("verifier review link")).toBeNull();
+    expect(screen.queryByRole("link", { name: /review tool/ })).toBeNull();
+  });
+
+  it("Pending with a wallet: the role-aware actions replace the plain dispute panel", async () => {
+    requestWallet();
+    setRoute(makeBounty({ state: 2, payee: CLAIMANT, challengeEndsAt: 4_000_000_000n }));
+    renderApp(<BountyDetail />);
+    expect(await screen.findByText("pending actions")).toBeInTheDocument();
+    expect(screen.queryByText("dispute panel")).toBeNull();
   });
 
   it("Pending: shows the frozen verdict and the dispute panel", async () => {
@@ -123,11 +141,12 @@ describe("BountyDetail by state", () => {
     expect(await screen.findByText("dispute panel")).toBeInTheDocument();
   });
 
-  it("Disputed: shows the frozen-payout banner and a resolution link", () => {
+  it("Disputed: shows the frozen-payout banner and the verifier link once a wallet is wanted", async () => {
+    requestWallet();
     setRoute(makeBounty({ state: 3, payee: CLAIMANT, disputer: FUNDER }));
     renderApp(<BountyDetail />);
     expect(screen.getByText("payout frozen — disputed")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /build a resolution/ })).toBeInTheDocument();
+    expect(await screen.findByText("verifier review link")).toBeInTheDocument();
   });
 
   it("Paid: shows the ruling with its credits and the timeline", () => {

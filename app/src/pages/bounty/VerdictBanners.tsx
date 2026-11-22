@@ -4,13 +4,16 @@ import { isZeroAddress } from "../../chain/address";
 import { nowSec } from "../../chain/time";
 import type { Bounty } from "../../chain/client";
 import type { BountyMeta } from "../../chain/indexer";
+import { useWalletWanted } from "../../components/walletIntent";
 
 const DisputePanel = lazy(() => import("../../wallet/DisputePanel"));
+const PendingActions = lazy(() => import("../../wallet/PendingActions"));
 
 const outcomeName = (b: Bounty) => (b.initialOutcome === 0 ? "PAY" : "REFUND");
 
 export function PendingVerdict({ id, bounty: b, meta }: { id: bigint; bounty: Bounty; meta: BountyMeta | undefined }) {
   const closed = nowSec() >= b.challengeEndsAt;
+  const wanted = useWalletWanted();
   return (
     <Card>
       <SectionLabel>verdict pending</SectionLabel>
@@ -30,11 +33,9 @@ export function PendingVerdict({ id, bounty: b, meta }: { id: bigint; bounty: Bo
         </p>
       )}
       <Suspense fallback={null}>
-        {meta && (
-          <div className="mt-4">
-            <DisputePanel id={id} bounty={b} meta={meta} />
-          </div>
-        )}
+        {meta && (wanted
+          ? <PendingActions id={id} bounty={b} meta={meta} />
+          : <div className="mt-4"><DisputePanel id={id} bounty={b} meta={meta} /></div>)}
       </Suspense>
     </Card>
   );

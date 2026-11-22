@@ -87,7 +87,7 @@ test("w4 review and dispute views", async ({ page }) => {
   if (b13.payee === "0x0000000000000000000000000000000000000000")
     test.skip(true, "claimed fixture bounty missing");
 
-  await installTestWallet(page, "claimant");
+  await installTestWallet(page, "verifier0");
   await mockGithub(page, {
     comments: [
       { id: 987654321, user: { login: "e2e-claimant" },

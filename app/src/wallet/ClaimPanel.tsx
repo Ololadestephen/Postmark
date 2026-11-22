@@ -25,6 +25,7 @@ import { sameAddress } from "../chain/address";
 import { errorMessage, qorexFailureToast } from "../chain/errors";
 import { nowSec } from "../chain/time";
 import { AccountFix } from "./AccountFix";
+import { useBountyRole } from "./role";
 import type { Bounty } from "../chain/client";
 import type { BountyMeta } from "../chain/indexer";
 
@@ -38,6 +39,7 @@ function ClaimPanelBody({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta
   const needsQorexCheck = !preferLocal && qorex.canSignArbitrary && !qorex.qorAddress;
   const mismatch = qoreXSigns ? accountMismatchMessage(qorex.qorAddress, address) : null;
   const myKey = usePqcStatus(address);
+  const role = useBountyRole(bounty);
   const tx = useTxAction();
   const toast = useToast();
 
@@ -58,9 +60,11 @@ function ClaimPanelBody({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta
 
   if (!address) return null;
   const me = address.toLowerCase();
-  if (sameAddress(address, bounty.funder)
-      || bounty.verifiers.some((v) => sameAddress(v, address))) {
-    return <Card className="text-sm text-gray">Funders and verifiers cannot claim their own bounty.</Card>;
+  if (role.role === "funder") {
+    return <Card className="text-sm text-gray">This is your bounty. Share the link; a contributor claims it here.</Card>;
+  }
+  if (role.role === "verifier") {
+    return <Card className="text-sm text-gray">You're verifier #{role.verifierIndex} on this bounty, so you can't claim it. You'll review once someone claims and their PR is merged.</Card>;
   }
   const t = nowSec();
   if (t >= bounty.deadline) {
