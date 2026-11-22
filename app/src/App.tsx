@@ -17,6 +17,7 @@ const Create = lazy(routeLoaders["/create"]);
 const Me = lazy(routeLoaders["/me"]);
 const Signer = lazy(routeLoaders["/signer"]);
 const Start = lazy(routeLoaders["/start"]);
+const VerifierJoin = lazy(routeLoaders["/verifiers/join"]);
 const Review = lazy(() => import("./pages/Review"));
 
 const queryClient = new QueryClient({
@@ -43,6 +44,7 @@ export default function App() {
               <Route path="/create" element={<B><Create /></B>} />
               <Route path="/me" element={<B><Me /></B>} />
               <Route path="/start" element={<B><Start /></B>} />
+              <Route path="/verifiers/join" element={<B><VerifierJoin /></B>} />
               <Route path="/signer" element={<B><Signer /></B>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

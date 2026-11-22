@@ -7,6 +7,7 @@ export const routeLoaders = {
   "/me": () => import("./pages/Me"),
   "/signer": () => import("./pages/Signer"),
   "/start": () => import("./pages/Start"),
+  "/verifiers/join": () => import("./pages/VerifierJoin"),
 } as const;
 
 const loadWalletModule = () => import("./wallet/ConnectWallet");
