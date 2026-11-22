@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
+import { requestWallet, resetWalletIntent } from "../../src/components/walletIntent";
 import { renderApp } from "../fixtures";
 
 vi.mock("../../src/chain/IndexerProvider", async () => (await import("../mocks")).indexerModule("live"));
@@ -41,8 +42,12 @@ describe("Landing", () => {
 });
 
 describe("pages", () => {
-  it("Me loads the wallet view lazily", async () => {
+  it("Me shows the not-connected Dashboard without the wallet chunk until a wallet is wanted", async () => {
+    resetWalletIntent();
     render(<MemoryRouter><Me /></MemoryRouter>);
+    expect(screen.getByText(/Connect an EVM wallet to see your funded bounties/)).toBeInTheDocument();
+    expect(screen.queryByText("me inner")).toBeNull();
+    act(() => requestWallet());
     expect(await screen.findByText("me inner")).toBeInTheDocument();
   });
 
