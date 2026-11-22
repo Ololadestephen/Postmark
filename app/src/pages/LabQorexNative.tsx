@@ -10,6 +10,11 @@ import { assertQorexTestnet, useQorex } from "../wallet/qorex";
 const btn = "rounded-lg border border-ink/20 bg-white px-3 py-1.5 text-sm font-medium hover:bg-ink/5 disabled:opacity-50";
 const primary = "rounded-lg bg-deep px-4 py-2 text-sm font-medium text-paper hover:brightness-110 disabled:opacity-50";
 
+const GAS = { nextBountyId: 600_000, withdraw: 1_000_000 } as const;
+/** The node charges the full gas limit at 0.1 uqor per gas. */
+const maxFeeQor = (gas: number) => (gas / 10 / 1e6).toFixed(2);
+const gasNote = (gas: number) => `gas limit ${gas.toLocaleString("en-US")}, max fee ≈ ${maxFeeQor(gas)} QOR`;
+
 type Outcome = { ok: true; result: unknown; txHash?: string } | { ok: false; error: string };
 
 /** Experiment: send a MsgCrossVMCall into the escrow through QoreX's native lane (no EVM window, no MetaMask). */
@@ -29,7 +34,7 @@ async function sendCrossVmCall(native: NonNullable<ReturnType<typeof useQorex>["
     const result = await native.signAndBroadcast({
       chainId: NATIVE_CHAIN_ID,
       messages: [{ typeUrl: "/qorechain.crossvm.v1.MsgCrossVMCall", value }],
-      gasLimit: 400000,
+      gasLimit: GAS[functionName],
     });
     return { ok: true, result, txHash: result.txHash };
   } catch (e) {
@@ -99,6 +104,7 @@ export default function LabQorexNative() {
           <button type="button" className={`mt-3 ${primary}`} disabled={!qorex.qorAddress || busy !== null} onClick={() => void run("nextBountyId", setRead)}>
             Send test call via QoreX
           </button>
+          <p className="mt-1 text-xs text-gray">{gasNote(GAS.nextBountyId)}</p>
           <Result o={read} />
         </Card>
         <Card>
@@ -107,6 +113,7 @@ export default function LabQorexNative() {
           <button type="button" className={`mt-3 ${btn}`} disabled={!qorex.qorAddress || busy !== null} onClick={() => void run("withdraw", setWithdraw)}>
             Send withdraw via QoreX
           </button>
+          <p className="mt-1 text-xs text-gray">{gasNote(GAS.withdraw)}</p>
           <Result o={withdraw} />
         </Card>
       </PageBody>
