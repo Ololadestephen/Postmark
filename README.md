@@ -65,6 +65,10 @@ app's preflight shows the exact QoreX steps when a window is missing or too smal
 
 ### Signing: QoreX, with a local signer as an Advanced option
 
+**QoreX must be on testnet.** QoreX starts on mainnet (`qorechain-vladi`) and a dapp cannot switch it; signing then fails with "message chain qorechain-diana does not match the active network". Extension: unlock it, tap the version number at the bottom 7 times, then choose *Switch to testnet (diana)* (the Home badge then shows TESTNET). Phone app: Settings, then *Use testnet (developers)*. The app reads QoreX's network (`eth_chainId`, no prompt) when you click a button that needs QoreX and stops with these steps instead of opening a prompt.
+
+**QoreX setup, in order.** (1) Install QoreX. (2) Switch it to testnet (the 7-tap steps above). (3) In *Your accounts* choose *Add an Ethereum account (coin 60)* and select it: QoreX's default account is a coin-118 Cosmos key that can't sign for an EVM address, while the coin-60 account is derived from your recovery phrase at m/44'/60' and has its own address. (4) Fund that address from the faucet. (5) Make one send in QoreX so its post-quantum key registers. (6) Import the same recovery phrase (a testing phrase only) into MetaMask on chain 9800; MetaMask index 0 then shows the same 0x address. Funders, claimants and verifiers all need this. The app's "different accounts" message links these steps.
+
 Claim and verdict messages are signed in the browser with **QoreX** (`signArbitrary`, ML-DSA-87 hybrid
 signing): click *Sign with QoreX*, approve, and the app verifies the returned signature against your live
 registered key before anything is sent. QoreX still cannot send EVM transactions, so transactions come from
