@@ -42,14 +42,14 @@ const settle = (page: Page) => page.waitForTimeout(2500);
 
 test("page loads make no interactive wallet call, fresh or with a remembered connection", async ({ page }) => {
   await boot(page, `localStorage.getItem("seeded") || (localStorage.setItem("seeded","1"));`);
-  for (const path of ["/", "/create", "/me"]) {
+  for (const path of ["/", "/create", "/me", "/verifiers/join"]) {
     await page.goto(path, { waitUntil: "networkidle" }); await settle(page);
     expect((await interactive(page)).filter((c) => INTERACTIVE.test(c)), `fresh ${path}`).toEqual([]);
   }
   await page.evaluate(() => {
     localStorage.setItem("wagmi.recentConnectorId", '"io.metamask"'); sessionStorage.setItem("__calls", "[]");
   });
-  for (const path of ["/", "/create", "/bounty/1"]) {
+  for (const path of ["/", "/create", "/bounty/1", "/verifiers/join"]) {
     await page.goto(path, { waitUntil: "networkidle" }); await settle(page);
     expect((await interactive(page)).filter((c) => INTERACTIVE.test(c)), `remembered ${path}`).toEqual([]);
   }
