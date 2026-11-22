@@ -91,7 +91,7 @@ function ConnectButtonInner({ openOnMount }: { openOnMount: boolean }) {
       )}
       {!wrongChain && win.data && !win.data.live && (
         <span className="hidden rounded-full border border-orange/40 px-2.5 py-1 text-xs text-orange md:inline"
-          title="No open EVM authorisation window. To send transactions, open one in QoreX scoped to the escrow address.">
+          title="No open EVM access window. To send transactions, open one in QoreX (the MetaMask on QoreChain card).">
           No EVM window
         </span>
       )}

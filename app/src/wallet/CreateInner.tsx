@@ -7,7 +7,6 @@ import { parseGithubUrl, githubItemLabel } from "../github/parse";
 import { ItemPreview, VerifierInput } from "./createParts";
 import { VerifierPicker } from "./VerifierPicker";
 import { ReadinessChecklist } from "./Readiness";
-import { useEnableTransactions } from "./useEnableTransactions";
 import { validateForm, verifierFieldError } from "../formats/createForm";
 import { livePqcKey } from "../chain/pqc";
 import { useTxAction } from "../hooks/useTxAction";
@@ -105,7 +104,6 @@ function CreateForm() {
   const navigate = useNavigate();
   const toast = useToast();
   const tx = useTxAction();
-  const enable = useEnableTransactions();
   const [url, setUrl] = useState("");
   const [touched, setTouched] = useState<Record<FieldGroup, boolean>>(
     { url: false, terms: false, timing: false, verifiers: false });
@@ -311,7 +309,7 @@ function CreateForm() {
         </div>
 
         <aside aria-label="Summary" className="min-w-0 space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <ReadinessChecklist neededWei={lockedWei ?? 0n} onEnable={(n) => void enable.run(n)} />
+          <ReadinessChecklist neededWei={lockedWei ?? 0n} />
           <Card tone="accent">
             <SectionLabel tone="accent">summary</SectionLabel>
             <div className="mt-3 flex items-end justify-between gap-3">

@@ -77,7 +77,7 @@ test("create form + dashboard screenshots", async ({ page }, testInfo) => {
     route.fulfill({ status: 200, contentType: "application/json",
       body: JSON.stringify({ found: false, live: false }) }));
   await page.getByRole("button", { name: /create bounty/i }).click();
-  await page.getByText(/open an evm authorisation window in qorex/i)
+  await page.getByText(/open an evm access window in qorex/i)
     .waitFor({ timeout: 30_000 });
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/create-pending-${size}.png` });

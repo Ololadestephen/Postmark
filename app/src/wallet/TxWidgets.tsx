@@ -1,6 +1,8 @@
 import { formatUnits } from "viem";
 import { explorerTx } from "../chain/config";
 import type { TxState } from "../hooks/useTxAction";
+import { useQorex } from "./qorex";
+import { WindowSteps } from "./WindowSteps";
 
 function MaxFee({ state }: { state: TxState }) {
   if (state.maxFeeWei === undefined) return null;
@@ -13,16 +15,12 @@ function MaxFee({ state }: { state: TxState }) {
 }
 
 export function WindowGuide({ guide }: { guide: NonNullable<TxState["guide"]> }) {
+  const qorex = useQorex();
+  const capQor = (Math.ceil(Number(guide.suggestedValueUqor) / 10_000) / 100).toString();
   return (
     <div className="mt-3 rounded-lg border border-orange/40 bg-orange/10 p-4 text-left text-sm">
-      <p className="font-medium text-orange">Open an EVM authorisation window in QoreX:</p>
-      <ol className="mt-2 list-inside list-decimal space-y-1 font-mono text-xs text-gray">
-        <li>QoreX → the account this wallet uses</li>
-        <li>Authorisations → New EVM window</li>
-        <li>Target: <span className="break-all text-ink">{guide.target}</span></li>
-        <li>Txs: {guide.suggestedTxs} · Cap: {guide.suggestedValueUqor} uqor or more</li>
-        <li>Confirm, then retry here</li>
-      </ol>
+      <p className="font-medium text-orange">Open an EVM access window in QoreX:</p>
+      <WindowSteps qorAddress={qorex.qorAddress} capQor={capQor} sendsValue />
     </div>
   );
 }

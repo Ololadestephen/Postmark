@@ -278,11 +278,11 @@ describe("TxStatusPanel", () => {
   });
 
   it("explains a blocked transaction with the window guide", () => {
-    render(<TxStatusPanel state={{ phase: "blocked", blockReason: "No open EVM window.",
+    renderApp(<TxStatusPanel state={{ phase: "blocked", blockReason: "No open EVM window.",
       guide: { target: "0xabc", suggestedTxs: 3, suggestedValueUqor: "1000" } }} />);
     expect(screen.getByText("No open EVM window.")).toBeInTheDocument();
-    expect(screen.getByText(/Open an EVM authorisation window/)).toBeInTheDocument();
-    expect(screen.getByText("0xabc")).toBeInTheDocument();
+    expect(screen.getByText(/Open an EVM access window/)).toBeInTheDocument();
+    expect(screen.getByText(/MetaMask on QoreChain/)).toBeInTheDocument();
   });
 
   it("walks through the in-flight and terminal phases", () => {

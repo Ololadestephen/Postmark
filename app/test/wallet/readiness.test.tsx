@@ -51,9 +51,9 @@ describe("readiness rows", () => {
     expect(r.pqc).toMatchObject({ status: "todo" });
     expect(r.pqc!.hint).toMatch(/one send/);
   });
-  it("offers Enable transactions when there is no window or it is too small", () => {
+  it("shows how to open a window when there is none or it is too small", () => {
     expect(byId({ ...ready, window: { found: false } as never }).window)
-      .toMatchObject({ status: "todo", action: { kind: "enable" } });
+      .toMatchObject({ status: "todo", help: "window" });
     const small = { ...OPEN_WINDOW, remainingValue: "1" };
     expect(byId({ ...ready, window: small as never }).window!.status).toBe("todo");
   });

@@ -14,15 +14,16 @@ import { useToast } from "../components/Toasts";
 import { QOREX_MAINNET_TEXT, qorexFailureToast } from "../chain/errors";
 import { accountMismatchMessage } from "./signerPreference";
 import { AccountFix } from "./AccountFix";
+import { WindowSteps } from "./WindowSteps";
 
 import { FAUCET_URL } from "../data/links";
 export { FAUCET_URL };
 
 export type RowStatus = "ok" | "todo" | "wait";
 export type RowAction =
-  | { kind: "connect" } | { kind: "switch" } | { kind: "enable" } | { kind: "checkQorex" }
+  | { kind: "connect" } | { kind: "switch" } | { kind: "checkQorex" }
   | { kind: "link"; href: string; label: string };
-export interface ReadinessRow { id: string; label: string; status: RowStatus; hint?: string | undefined; action?: RowAction; help?: "accounts" }
+export interface ReadinessRow { id: string; label: string; status: RowStatus; hint?: string | undefined; action?: RowAction; help?: "accounts" | "window" }
 
 export interface ReadinessInput {
   connected: boolean;
@@ -71,7 +72,7 @@ export function readinessRows(i: ReadinessInput): ReadinessRow[] {
   rows.push(!i.connected ? { id: "window", label: "Transactions enabled", status: "wait" }
     : pre?.ok ? { id: "window", label: "Transactions enabled", status: "ok" }
     : { id: "window", label: "Transactions enabled", status: "todo", hint: pre?.ok === false ? pre.reason : undefined,
-        action: { kind: "enable" } });
+        help: "window" });
   rows.push(i.balanceWei === undefined ? { id: "balance", label: "Enough test QOR", status: "wait" }
     : i.balanceWei >= i.neededWei + FEE_MARGIN_WEI ? { id: "balance", label: "Enough test QOR", status: "ok" }
     : { id: "balance", label: "Enough test QOR", status: "todo", hint: "Get free test QOR from the faucet.",
@@ -86,8 +87,8 @@ const ICON: Record<RowStatus, ReactNode> = {
 };
 const STATUS_TEXT: Record<RowStatus, string> = { ok: "ready", todo: "needs attention", wait: "waiting" };
 
-export function ReadinessChecklist({ neededWei, onEnable, title = "Before you fund", compact = false }: {
-  neededWei: bigint; onEnable?: (neededWei: bigint) => void; title?: string;
+export function ReadinessChecklist({ neededWei, title = "Before you fund", compact = false }: {
+  neededWei: bigint; title?: string;
   /** one-line summary, only failing rows, passing ones behind a "show all" toggle */
   compact?: boolean;
 }) {
@@ -113,7 +114,6 @@ export function ReadinessChecklist({ neededWei, onEnable, title = "Before you fu
     if (a.kind === "connect") document.querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]')?.click();
     else if (a.kind === "switch") switchChain({ chainId: 9800 });
     else if (a.kind === "checkQorex") void qorex.connectAccount().catch((e) => toast(qorexFailureToast(e, { title: "Couldn't reach QoreX" })));
-    else if (a.kind === "enable") onEnable?.(neededWei);
   };
   const btn = "shrink-0 rounded-md border border-ink/20 bg-white px-2.5 py-1 text-xs font-medium hover:bg-ink/5";
   const ready = rows.filter((r) => r.status === "ok").length;
@@ -127,13 +127,19 @@ export function ReadinessChecklist({ neededWei, onEnable, title = "Before you fu
             <p className="text-sm font-medium leading-tight">{r.label} <span className="sr-only">— {STATUS_TEXT[r.status]}</span></p>
             {r.status === "todo" && r.hint && <p className="mt-0.5 text-xs text-charcoal">{r.hint}</p>}
             {r.status === "todo" && r.help === "accounts" && <AccountFix />}
+            {r.status === "todo" && r.help === "window" && (
+              <details className="mt-1">
+                <summary className="cursor-pointer text-xs font-medium text-deep">How to open</summary>
+                <WindowSteps qorAddress={qorex.qorAddress} sendsValue={neededWei > 0n}
+                  capQor={neededWei > 0n ? String(Math.ceil(Number(neededWei) / 1e18 + 1)) : undefined} />
+              </details>
+            )}
           </div>
           {r.status === "todo" && r.action && (
             r.action.kind === "link"
               ? <a className={btn} href={r.action.href} target={r.action.href.startsWith("/") ? undefined : "_blank"} rel="noreferrer">{r.action.label}</a>
-              : r.action.kind === "enable" && !onEnable ? null
               : <button type="button" className={btn} onClick={() => run(r.action!)}>
-                  {r.action.kind === "connect" ? "Connect" : r.action.kind === "switch" ? "Switch" : r.action.kind === "checkQorex" ? "Check with QoreX" : "Enable"}
+                  {r.action.kind === "connect" ? "Connect" : r.action.kind === "switch" ? "Switch" : "Check with QoreX"}
                 </button>
           )}
         </li>

@@ -17,7 +17,6 @@ import { pickSigner } from "./pqSigner";
 import { accountMismatchMessage, usePrefersLocalSigner } from "./signerPreference";
 import { AdvancedSigner } from "./AdvancedSigner";
 import { ReadinessChecklist } from "./Readiness";
-import { useEnableTransactions } from "./useEnableTransactions";
 import { useQorex } from "./qorex";
 import { usePqcStatus } from "../hooks/queries";
 import { Card, SectionLabel, shortAddr } from "../components/ui";
@@ -34,7 +33,6 @@ type Step = "identity" | "scan" | "signature" | "send";
 function ClaimPanelBody({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta: BountyMeta }) {
   const { address } = useAccount();
   const qorex = useQorex();
-  const enable = useEnableTransactions();
   const preferLocal = usePrefersLocalSigner();
   const qoreXSigns = !preferLocal && qorex.canSignArbitrary && !!qorex.qorAddress;
   const needsQorexCheck = !preferLocal && qorex.canSignArbitrary && !qorex.qorAddress;
@@ -166,7 +164,7 @@ function ClaimPanelBody({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta
       )}
 
       <div className="mt-3">
-        <ReadinessChecklist compact neededWei={0n} title="Ready to claim" onEnable={(n) => void enable.run(n)} />
+        <ReadinessChecklist compact neededWei={0n} title="Ready to claim" />
       </div>
 
       <ol className="mt-4 space-y-3">

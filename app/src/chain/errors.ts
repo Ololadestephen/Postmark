@@ -60,7 +60,13 @@ export function isQorexWrongNetwork(err: unknown): boolean {
 }
 
 /** Toast for a QoreX failure: a warning with the switch steps for the wrong network, otherwise `fallback`. */
+const WINDOW_BY_WALLET = /managed by the wallet itself|MsgOpenEVMWindow/i;
+
 export function qorexFailureToast(err: unknown, fallback: { title: string; text?: string }) {
+  if (WINDOW_BY_WALLET.test(errorMessage(err))) {
+    return { kind: "warning" as const, title: "Open the window in QoreX",
+      text: "A website can't open the EVM window. In QoreX tap the MetaMask on QoreChain card, set Blocks 1000, Max transactions 5 and a Spending cap that covers your amount plus fees, then retry." };
+  }
   if (isQorexWrongNetwork(err)) return { kind: "warning" as const, title: QOREX_MAINNET_TITLE, text: QOREX_MAINNET_TEXT };
   return { kind: "error" as const, title: fallback.title, text: fallback.text ?? errorMessage(err) };
 }
@@ -95,9 +101,9 @@ export function explainError(err: unknown): string {
 export function classifyWindowRefusal(text: string): string | null {
   const t = text.toLowerCase();
   if (t.includes("no open evm authorisation window"))
-    return "No open EVM authorisation window. Open one in QoreX scoped to the escrow address.";
+    return "No open EVM access window. Open one in QoreX (the MetaMask on QoreChain card), then retry.";
   if (t.includes("window exhausted"))
-    return "The EVM authorisation window is exhausted. Close it and open a new one in QoreX.";
+    return "The EVM access window is exhausted. Open a new one in QoreX (the MetaMask on QoreChain card).";
   if (t.includes("no registered post-quantum key"))
     return "This account has no registered post-quantum key on diana.";
   if (t.includes("nonce too low"))

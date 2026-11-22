@@ -77,7 +77,7 @@ const STEPS: Record<TabId, Step[]> = {
       body: "Today the EVM wallet you send transactions from (for example MetaMask) must hold the same account as QoreX — QoreX can sign, but it cannot send EVM transactions yet.",
       action: <button type="button" className={`${btn} mt-2`} onClick={connectWallet}>Connect wallet</button> },
     { title: "Check the “Before you fund” list",
-      body: "The Create page shows what's still missing and fixes most of it with one click, including Enable transactions.",
+      body: "The Create page shows what's still missing and shows the rest, including how to open the EVM access window in QoreX.",
       action: <Link className={`${primary} mt-2`} to="/create">Open Create</Link> },
     { title: "Describe the bounty", body: "Pick the GitHub issue, the reward, a deadline and three verifiers (or let us pick 3 for you), then fund it." },
   ],

@@ -120,6 +120,6 @@ test("an account with no window sees the QoreX guide (no tx sent)", async ({ pag
   await page.getByRole("button", { name: /create bounty/i }).click();
   await expect(page.getByText(/no open evm authorisation window/i))
     .toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText(/open an evm authorisation window in qorex/i))
+  await expect(page.getByText(/open an evm access window in qorex/i))
     .toBeVisible();
 });
