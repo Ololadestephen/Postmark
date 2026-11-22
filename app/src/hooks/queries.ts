@@ -3,8 +3,29 @@ import { getBounty, httpClient, escrow, nextBountyId, totalLiabilities } from ".
 import { fetchIndex, type IndexerState } from "../chain/indexer";
 import { pqcKeyStatus, type PqcStatus } from "../chain/pqc";
 import { fetchEvmWindow } from "../chain/window";
-import { getIssue, getPull, type GhIssue, type GhPull } from "../github/client";
+import { getAllComments, getIssue, getPull, type GhIssue, type GhPull } from "../github/client";
+import { VERIFIER_REGISTRY } from "../chain/config";
+import { VERIFIERS } from "../data/verifiers";
+import type { Listing } from "../formats/verifierListing";
 import type { WorkItem } from "../github/parse";
+
+/** Verifiers who listed themselves on the registry issue; signatures checked against live keys. */
+export async function fetchSelfListed(): Promise<Listing[]> {
+  const [{ collectListings }, { mldsa87 }, comments] = await Promise.all([
+    import("../formats/verifierListing"), import("@qorechain/pqc"),
+    getAllComments(VERIFIER_REGISTRY.ownerRepo, VERIFIER_REGISTRY.issue),
+  ]);
+  return collectListings(comments, {
+    liveKey: async (a) => { const s = await pqcKeyStatus(a); return s.live ? s.pubkey : null; },
+    verify: (k, m, s) => mldsa87.verify(k, m, s),
+    curated: new Set(VERIFIERS.map((v) => v.address.toLowerCase())),
+  });
+}
+
+export const useSelfListed = () => useQuery<Listing[]>({
+  queryKey: ["selfListed"], queryFn: fetchSelfListed,
+  staleTime: 5 * 60_000, retry: false, refetchOnWindowFocus: false,
+});
 
 export const useIndex = () => useQuery<IndexerState>({
   queryKey: ["index"], queryFn: fetchIndex,

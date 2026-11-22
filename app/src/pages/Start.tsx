@@ -2,7 +2,7 @@ import { useId, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { QOREX_DOWNLOAD_URLS } from "@qorechain/qorex-types";
 import { PageBody, PageHeader } from "../components/Page";
-import { becomeVerifierUrl } from "../data/verifiers";
+import { JOIN_VERIFIER_PATH } from "../data/verifiers";
 
 import { FAUCET_URL } from "../data/links";
 const TABS = [
@@ -63,8 +63,8 @@ const STEPS: Record<TabId, Step[]> = {
   verify: [
     { title: "Install QoreX", body: "Verdicts are signed with your post-quantum key.", action: <InstallQorex /> },
     REGISTER_KEY,
-    { title: "Apply to be a verifier", body: "Fill in the short form so funders can find you.",
-      action: <a className={`${primary} mt-2`} href={becomeVerifierUrl()} {...ext}>Become a verifier</a> },
+    { title: "List yourself as a verifier", body: "Sign one line with QoreX so funders can find you.",
+      action: <Link className={`${primary} mt-2`} to={JOIN_VERIFIER_PATH}>Become a verifier</Link> },
     { title: "Review the work", body: "When a funder picks you, open the bounty's review page, check the claim and the pull request, and choose PAY or REFUND." },
     { title: "Sign with QoreX", body: "Two of three matching verdicts release the reward. Anyone can submit the merged verdicts." },
   ],

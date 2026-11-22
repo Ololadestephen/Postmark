@@ -13,6 +13,9 @@ export interface VerifierEntry {
 /** Curated reviewers shown in the Create picker; anyone can apply through the issue form. */
 export const VERIFIERS = list as VerifierEntry[];
 
+/** In-app sign-up page for new verifiers. */
+export const JOIN_VERIFIER_PATH = "/verifiers/join";
+
 const REPO = "https://github.com/Ololadestephen/Postmark";
 export const BECOME_VERIFIER_URL = `${REPO}/issues/new?template=become-a-verifier.yml`;
 

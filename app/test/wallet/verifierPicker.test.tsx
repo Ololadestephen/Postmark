@@ -1,11 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useState } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render as rtlRender, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
+const render = (ui: React.ReactElement) => rtlRender(<MemoryRouter>{ui}</MemoryRouter>);
 import { VERIFIERS, becomeVerifierUrl, BECOME_VERIFIER_URL } from "../../src/data/verifiers";
 import { CLAIMANT } from "../fixtures";
 
-const m = vi.hoisted(() => ({ live: {} as Record<string, boolean | undefined>, toast: vi.fn() }));
+const m = vi.hoisted(() => ({
+  live: {} as Record<string, boolean | undefined>, toast: vi.fn(),
+  listed: { data: [] as { address: string; login: string; commentId: number }[], isError: false, isPending: false },
+}));
 vi.mock("../../src/hooks/queries", () => ({
+  useSelfListed: () => m.listed,
   usePqcStatus: (a: string) => ({ data: m.live[a] === undefined ? undefined : { live: m.live[a] } }),
 }));
 vi.mock("../../src/components/Toasts", () => ({ useToast: () => m.toast }));
@@ -29,6 +35,7 @@ function Harness({ connected = CLAIMANT as string | undefined }) {
 beforeEach(() => {
   vi.clearAllMocks();
   m.live = { [A!]: true, [B!]: true, [C!]: true };
+  m.listed = { data: [], isError: false, isPending: false };
 });
 
 describe("verifier list", () => {
@@ -69,6 +76,32 @@ describe("picker helpers", () => {
     expect(text).toMatch(/QoreX/);
     expect(text).toMatch(/one send/);
     expect(text).toContain("https://example.test/form");
+  });
+});
+
+describe("self-listed verifiers", () => {
+  const SELF = "0x1111111111111111111111111111111111111111";
+  it("shows self-listed entries as a separate, not-vetted section and lets them be picked", () => {
+    m.listed.data = [{ address: SELF, login: "octocat", commentId: 1 }];
+    m.live[SELF] = true;
+    render(<Harness />);
+    expect(screen.getByText("Self-listed verifiers (not vetted)")).toBeInTheDocument();
+    expect(screen.getByText("Self-listed · not vetted")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "github.com/octocat" })).toHaveAttribute("href", "https://github.com/octocat");
+    fireEvent.click(screen.getByRole("button", { name: "@octocat" }));
+    expect(screen.getByTestId("slots")).toHaveTextContent(SELF);
+  });
+  it("Pick 3 for me ignores self-listed entries", () => {
+    m.listed.data = [{ address: SELF, login: "octocat", commentId: 1 }];
+    m.live[SELF] = true;
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "Pick 3 for me" }));
+    expect(screen.getByTestId("slots")).not.toHaveTextContent(SELF);
+  });
+  it("shows a quiet note when the list can't load", () => {
+    m.listed = { data: [], isError: true, isPending: false };
+    render(<Harness />);
+    expect(screen.getByText("Couldn't load self-listed verifiers right now.")).toBeInTheDocument();
   });
 });
 
@@ -113,13 +146,13 @@ describe("VerifierPicker", () => {
     expect(screen.getByTestId("slots")).toHaveTextContent(",,");
   });
 
-  it("copies the invite and links the prefilled become-a-verifier form", () => {
+  it("copies the invite and links the in-app sign-up page", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
     render(<Harness />);
     fireEvent.click(screen.getByRole("button", { name: "Ask a friend to verify" }));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("QoreX"));
     expect(screen.getByRole("link", { name: "Become a verifier" }))
-      .toHaveAttribute("href", becomeVerifierUrl(CLAIMANT));
+      .toHaveAttribute("href", "/verifiers/join");
   });
 });

@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { PageBody, PageHeader } from "../components/Page";
-import { BECOME_VERIFIER_URL } from "../data/verifiers";
+import { JOIN_VERIFIER_PATH } from "../data/verifiers";
 
 export default function Signer() {
   return (
@@ -21,7 +21,7 @@ export default function Signer() {
       <ul className="mt-4 list-inside list-disc space-y-2 text-sm text-gray">
         <li>Your EVM wallet (for example MetaMask) and QoreX must use the <strong>same account</strong> today — QoreX can sign, but it cannot send EVM transactions yet.</li>
         <li>New here? <Link to="/start" className="text-deep underline underline-offset-4">Get started</Link>.</li>
-        <li>Want to review work for others? <a className="text-deep underline underline-offset-4" href={BECOME_VERIFIER_URL} target="_blank" rel="noreferrer">Become a verifier</a>.</li>
+        <li>Want to review work for others? <Link className="text-deep underline underline-offset-4" to={JOIN_VERIFIER_PATH}>Become a verifier</Link>.</li>
       </ul>
 
       <details className="mt-8 rounded-xl border border-ink/10 bg-white p-5">

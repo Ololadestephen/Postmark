@@ -51,7 +51,7 @@ describe("listing verification", () => {
     expect(await checkListing(comment(1, "someone-else", good), deps())).toBe("login-mismatch");
   });
   it("drops a signature for another escrow, a tampered one, or a key that is not live", async () => {
-    expect(await checkListing(comment(1, "octocat", line(ADDR, "octocat", sign(ADDR, "octocat", "0x" + "1".repeat(40)))), deps())).toBe("bad-signature");
+    expect(await checkListing(comment(1, "octocat", line(ADDR, "octocat", sign(ADDR, "octocat", `0x${"1".repeat(40)}`))), deps())).toBe("bad-signature");
     const sig = sign(ADDR, "octocat");
     const tampered = (sig.slice(0, 20) + (sig[20] === "a" ? "b" : "a") + sig.slice(21)) as Hex;
     expect(await checkListing(comment(1, "octocat", line(ADDR, "octocat", tampered)), deps())).toBe("bad-signature");
