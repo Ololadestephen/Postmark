@@ -15,7 +15,7 @@ describe("Get started page", () => {
     expect(screen.getByRole("tab", { name: "Verify" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tabpanel", { name: "Verify" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Become a verifier" }))
-      .toHaveAttribute("href", expect.stringContaining("template=become-a-verifier.yml"));
+      .toHaveAttribute("href", "/verifiers/join");
   });
 
   it("links the QoreX downloads and the faucet, and is honest about the same-account requirement", () => {

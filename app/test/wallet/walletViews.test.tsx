@@ -30,6 +30,7 @@ vi.mock("../../src/chain/client", async (importOriginal) => ({
   creditOf: vi.fn(async () => m.credits),
 }));
 vi.mock("../../src/hooks/queries", () => ({
+  useSelfListed: () => ({ data: [], isError: false, isPending: false }),
   useIndex: () => m.index, useBounties: () => m.bounties,
   usePqcStatus: () => ({ data: m.pqcLive === undefined ? undefined : { live: m.pqcLive } }),
   useGithubItem: () => m.githubItem,
