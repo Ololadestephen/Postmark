@@ -20,7 +20,7 @@ export const comment = (id: number, login: string, body: string): GhComment =>
 
 export const pull = (over: Partial<GhPull> = {}): GhPull => ({
   number: 1, title: "fix", state: "closed", merged: true, merged_at: "2030-01-01T00:00:00Z".replace("2030", "2030"),
-  merge_commit_sha: SHA, user: { login: "contributor" }, html_url: `https://github.com/${REPO}/pull/1`, ...over,
+  merge_commit_sha: SHA, body: "Fixes #7", user: { login: "contributor" }, html_url: `https://github.com/${REPO}/pull/1`, ...over,
 });
 const sec = (iso: string) => BigInt(Math.floor(Date.parse(iso) / 1000));
 

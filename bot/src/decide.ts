@@ -3,7 +3,7 @@
 import { zeroAddress, type Address, type Hex } from "viem";
 import type { Bounty } from "../../app/src/chain/client";
 import { findClaimComments, findDisputeComments, type GhComment } from "../../app/src/github/comments";
-import { checkPull, mergedAtSeconds } from "../../app/src/github/prcheck";
+import { checkPull, closesIssue, mergedAtSeconds } from "../../app/src/github/prcheck";
 import { githubItemUrl } from "../../app/src/github/parse";
 import type { GhPull } from "../../app/src/github/client";
 import {
@@ -112,9 +112,16 @@ async function judge(i: DecideInput, login: string): Promise<Basis | Abstain> {
 
   const pulls: { pr: GhPull; n: number }[] = [];
   for (const c of candidates) pulls.push({ pr: await gh.getPull(c.repo, c.number), n: c.number });
+  // a timeline cross-reference is only a mention: an issue bounty counts PRs that say Fixes/Closes/Resolves it
+  if (meta.kind === 0) {
+    for (let k = pulls.length - 1; k >= 0; k--) {
+      if (!closesIssue(pulls[k]!.pr, meta.ownerRepo, Number(meta.number))) pulls.splice(k, 1);
+    }
+  }
 
   const qualifying = pulls.filter(({ pr }) =>
-    checkPull(pr, { expectedRepo: meta.ownerRepo, prRepo: meta.ownerRepo, deadline: b.deadline, identityLogin: login })
+    checkPull(pr, { expectedRepo: meta.ownerRepo, prRepo: meta.ownerRepo, deadline: b.deadline, identityLogin: login,
+      ...(meta.kind === 0 ? { closesIssue: { ownerRepo: meta.ownerRepo, number: Number(meta.number) } } : {}) })
       .every((item) => item.ok) && mergedAtSeconds(pr) <= now);
   if (qualifying.length > 1) return abstain("several qualifying PRs");
   if (qualifying.length === 1) {

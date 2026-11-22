@@ -80,6 +80,20 @@ describe("decide: REFUND", () => {
     const d = await run({ issue: { state: "closed", state_reason: "not_planned" } });
     expect(d).toMatchObject({ kind: "refund", reason: "withdrawn", detailsUrl: `https://github.com/${REPO}/issues/7` });
   });
+  it("a merged PR by the claimant that only mentions the issue (Fixes another issue) is not the work", async () => {
+    const d = await run({ linked: linked1, pulls: pulls(goodPull({ body: "Fixes #8" })) });
+    expect(d.kind).toBe("abstain");
+    expect(reason(d)).toMatch(/no merged PR from the claimant yet/);
+  });
+  it("pays once the same PR says it fixes this issue", async () => {
+    expect((await run({ linked: linked1, pulls: pulls(goodPull({ body: "Fixes #7" })) })).kind).toBe("pay");
+    expect((await run({ linked: linked1, pulls: pulls(goodPull({ body: null, title: "Closes #7: export" })) })).kind).toBe("pay");
+  });
+  it("does not refund a completed issue when another author's PR merely mentions it", async () => {
+    const d = await run({ issue: { state: "closed", state_reason: "completed" }, linked: linked1,
+      pulls: pulls(goodPull({ user: { login: "stranger" }, body: "related to #7" })) });
+    expect(d.kind).toBe("abstain");
+  });
   it("refunds a completed issue whose merged PR is by someone else", async () => {
     const d = await run({ issue: { state: "closed", state_reason: "completed" }, linked: linked1, pulls: pulls(goodPull({ user: { login: "stranger" } })) });
     expect(d).toMatchObject({ kind: "refund", reason: "ineligible" });
