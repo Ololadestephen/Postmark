@@ -115,8 +115,9 @@ export default function VerifierJoin() {
         <Card tone="plain" className="mb-6">
           <SectionLabel>What this means</SectionLabel>
           <p className="mt-2 text-sm text-charcoal">
-            Self-listing proves you control a post-quantum key; funders choose whom to trust. You'll only be asked to sign
-            when the bots disagree or a payout is disputed, and only for bounties where a funder picked you.
+            Self-listing proves you control a post-quantum key; funders choose whom to trust. You only review bounties
+            whose funder picked you: next to the two bots that means signing when they disagree or a payout is disputed;
+            with fewer bots, you review each claim.
           </p>
         </Card>
         <ol className="space-y-3">
