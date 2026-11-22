@@ -37,11 +37,42 @@ const REGISTER_KEY: Step = {
   body: "In QoreX, make one send (any small amount). That registers your ML-DSA-87 key on QoreChain diana.",
 };
 
+const SWITCH_TESTNET: Step = {
+  title: "Switch QoreX to testnet",
+  body: (<>
+    QoreX starts on mainnet and a website can't switch it for you. <strong>Extension:</strong> unlock it, tap the version
+    number at the bottom 7 times, then choose <em>Switch to testnet (diana)</em>; the Home badge then shows TESTNET.{" "}
+    <strong>Phone app:</strong> Settings, then <em>Use testnet (developers)</em>.
+  </>),
+};
+
+const COIN60_ACCOUNT: Step = {
+  title: "Add an Ethereum account in QoreX",
+  body: (<>
+    QoreX's default account is a different key and can't sign for an EVM address. In QoreX open <em>Your accounts</em>, choose{" "}
+    <em>Add an Ethereum account (coin 60)</em> and select it. It has its own address, so the next steps use that account.
+  </>),
+};
+
+const IMPORT_PHRASE: Step = {
+  title: "Import the same phrase into MetaMask",
+  body: "Import the same QoreX recovery phrase (a testing phrase only) into MetaMask on chain 9800, so MetaMask and QoreX show the same 0x address.",
+};
+
+const FAUCET_STEP: Step = {
+  title: "Get free test QOR for that account",
+  body: "Payouts are test QOR with no monetary value. Request some from the faucet for the coin-60 account's address.",
+  action: <a className={`${btn} mt-2`} href={FAUCET_URL} {...ext}>Open the faucet</a>,
+};
+
 const STEPS: Record<TabId, Step[]> = {
   fund: [
     { title: "Install QoreX", body: "QoreX is the QoreChain wallet that holds your post-quantum key.", action: <InstallQorex /> },
-    { title: "Get free test QOR", body: "Payouts are test QOR with no monetary value. Request some from the faucet.",
-      action: <a className={`${btn} mt-2`} href={FAUCET_URL} {...ext}>Open the faucet</a> },
+    SWITCH_TESTNET,
+    COIN60_ACCOUNT,
+    FAUCET_STEP,
+    REGISTER_KEY,
+    IMPORT_PHRASE,
     { title: "Connect your EVM wallet",
       body: "Today the EVM wallet you send transactions from (for example MetaMask) must hold the same account as QoreX — QoreX can sign, but it cannot send EVM transactions yet.",
       action: <button type="button" className={`${btn} mt-2`} onClick={connectWallet}>Connect wallet</button> },
@@ -52,7 +83,11 @@ const STEPS: Record<TabId, Step[]> = {
   ],
   claim: [
     { title: "Install QoreX", body: "You sign your claim with your post-quantum key.", action: <InstallQorex /> },
+    SWITCH_TESTNET,
+    COIN60_ACCOUNT,
+    FAUCET_STEP,
     REGISTER_KEY,
+    IMPORT_PHRASE,
     { title: "Find a bounty", body: "Browse open bounties and pick one you can finish.",
       action: <Link className={`${primary} mt-2`} to="/explore">Browse bounties</Link> },
     { title: "Claim it",
@@ -62,6 +97,9 @@ const STEPS: Record<TabId, Step[]> = {
   ],
   verify: [
     { title: "Install QoreX", body: "Verdicts are signed with your post-quantum key.", action: <InstallQorex /> },
+    SWITCH_TESTNET,
+    COIN60_ACCOUNT,
+    FAUCET_STEP,
     REGISTER_KEY,
     { title: "List yourself as a verifier", body: "Sign one line with QoreX so funders can find you.",
       action: <Link className={`${primary} mt-2`} to={JOIN_VERIFIER_PATH}>Become a verifier</Link> },

@@ -10,7 +10,9 @@ describe("Get started page", () => {
     const tabs = screen.getAllByRole("tab");
     expect(tabs.map((t) => t.textContent)).toEqual(["Fund", "Claim", "Verify"]);
     expect(tabs[0]).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tabpanel", { name: "Fund" }).querySelectorAll("li")).toHaveLength(5);
+    expect(screen.getByRole("tabpanel", { name: "Fund" }).querySelectorAll("li")).toHaveLength(9);
+    expect(screen.getAllByText(/Add an Ethereum account \(coin 60\)/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Switch to testnet \(diana\)/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("tab", { name: "Verify" }));
     expect(screen.getByRole("tab", { name: "Verify" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tabpanel", { name: "Verify" })).toBeVisible();
