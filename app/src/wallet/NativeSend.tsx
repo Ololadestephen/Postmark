@@ -12,8 +12,10 @@ export const NATIVE_VALUE_NOTE =
 const btn = "rounded-lg border border-deep/40 px-4 py-2 text-sm font-medium text-deep hover:bg-deep/5 disabled:cursor-not-allowed disabled:opacity-40";
 
 /** "Send with QoreX": the same escrow call as a MsgCrossVMCall through QoreX, no MetaMask or EVM window. */
-export function NativeSend({ call, label = "Send with QoreX", onConfirmed, invalidates, disabled, tone = "light" }: {
+export function NativeSend({ call, sender, label = "Send with QoreX", onConfirmed, invalidates, disabled, tone = "light" }: {
   call: NativeCall | null;
+  /** The account this page acts for; QoreX must be on it. */
+  sender?: `0x${string}` | undefined;
   label?: string;
   onConfirmed?: () => void;
   invalidates?: QueryKey[];
@@ -23,11 +25,11 @@ export function NativeSend({ call, label = "Send with QoreX", onConfirmed, inval
   const qorex = useQorex();
   if (!qorexNativeEnabled()) return null;
   if (!qorex.native?.capabilities?.includes("signAndBroadcast")) return null;
-  return <NativeSendInner {...{ call, label, onConfirmed, invalidates, disabled, tone }} />;
+  return <NativeSendInner {...{ call, sender, label, onConfirmed, invalidates, disabled, tone }} />;
 }
 
-function NativeSendInner({ call, label, onConfirmed, invalidates, disabled, tone }: {
-  call: NativeCall | null; label: string; onConfirmed?: (() => void) | undefined; invalidates?: QueryKey[] | undefined;
+function NativeSendInner({ call, sender, label, onConfirmed, invalidates, disabled, tone }: {
+  call: NativeCall | null; sender?: `0x${string}` | undefined; label: string; onConfirmed?: (() => void) | undefined; invalidates?: QueryKey[] | undefined;
   disabled?: boolean | undefined; tone: "light" | "dark";
 }) {
   const qorex = useQorex();
@@ -54,7 +56,7 @@ function NativeSendInner({ call, label, onConfirmed, invalidates, disabled, tone
     <div className="mt-3 text-sm" data-testid="native-send">
       {(state.phase === "idle" || state.phase === "confirmed" || state.phase === "failed") && (
         <button type="button" className={btn} disabled={disabled || !call}
-          onClick={() => call && void native.prepare(call)}>
+          onClick={() => call && void native.prepare(call, sender)}>
           {state.phase === "failed" ? "Try again with QoreX" : label}
         </button>
       )}
@@ -73,6 +75,14 @@ function NativeSendInner({ call, label, onConfirmed, invalidates, disabled, tone
             </div>
           ) : <p className="mt-2 text-gray">Waiting for QoreX…</p>}
         </div>
+      )}
+      {state.phase === "submitted" && state.txHash && (
+        <p className={`mt-2 ${muted}`}>Sent. Waiting for diana to include it… {link(state.txHash)}</p>
+      )}
+      {state.phase === "unconfirmed" && state.txHash && (
+        <p role="status" className="mt-2 text-orange">
+          Sent, but diana hasn't confirmed it yet. Check the transaction before trying again: {link(state.txHash)}
+        </p>
       )}
       {state.phase === "confirmed" && state.txHash && (
         <p className={`mt-2 ${tone === "dark" ? "text-lime" : "text-deep"}`}>Sent with QoreX and confirmed. {link(state.txHash)}</p>

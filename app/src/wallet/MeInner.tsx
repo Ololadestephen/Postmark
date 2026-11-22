@@ -50,7 +50,7 @@ function Credits() {
           Withdraw
         </button>
       </div>
-      <NativeSend tone="dark" call={{ functionName: "withdraw", args: [] }} label="Withdraw with QoreX" disabled={tx.busy}
+      <NativeSend tone="dark" call={{ functionName: "withdraw", args: [] }} sender={address} label="Withdraw with QoreX" disabled={tx.busy}
         invalidates={[["credits", address]]}
         onConfirmed={() => toast({ kind: "success", title: "Withdrawn", text: "The QOR is on its way to your wallet." })} />
       <dl className="mt-4 flex gap-8 border-t border-paper/10 pt-4 text-sm">

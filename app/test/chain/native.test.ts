@@ -6,7 +6,7 @@ import { postmarkEscrowAbi } from "../../src/chain/abi";
 import { ESCROW_ADDRESS } from "../../src/chain/config";
 import {
   CROSS_VM_TYPE_URL, crossVmMessage, escrowPayload, explainNativeCode, explainNativeFailure,
-  NATIVE_GAS, nativeGasLimit, nativeMaxFeeQor, NativeSimulationError, simulateNativeGas,
+  NATIVE_GAS, nativeGasLimit, waitForNativeTx, nativeMaxFeeQor, NativeSimulationError, simulateNativeGas,
   simulationTxBytes, type NativeCall,
 } from "../../src/chain/native";
 
@@ -126,5 +126,19 @@ describe("native failures", () => {
       .toMatchObject({ kind: "gas", text: expect.stringMatching(/ran out of gas at the 650,000 limit/) });
     expect(explainNativeCode(11, 650_000)).toMatch(/ran out of gas/);
     expect(explainNativeCode(5, 650_000)).toMatch(/code 5/);
+  });
+});
+
+describe("waitForNativeTx", () => {
+  const poll = { attempts: 3, intervalMs: 1 };
+  it("returns the included receipt's code and height", async () => {
+    const f = vi.fn().mockResolvedValueOnce(json({}, false)).mockResolvedValueOnce(json({ tx_response: { code: 0, height: "42" } }));
+    expect(await waitForNativeTx("AB", f, poll)).toEqual({ status: "included", code: 0, height: 42 });
+    expect(f.mock.calls[0]![0]).toMatch(/\/cosmos\/tx\/v1beta1\/txs\/AB$/);
+  });
+  it("is pending when the tx never shows up", async () => {
+    const f = vi.fn().mockResolvedValue(json({}, false));
+    expect(await waitForNativeTx("AB", f, poll)).toEqual({ status: "pending" });
+    expect(f).toHaveBeenCalledTimes(3);
   });
 });

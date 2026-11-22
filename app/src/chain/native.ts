@@ -132,6 +132,26 @@ export async function simulateNativeGas(sender: string, msg: { typeUrl: string; 
   }
 }
 
+/** How long to look for a broadcast tx QoreX returned without a block height. */
+export const NATIVE_RECEIPT_POLL = { attempts: 20, intervalMs: 3_000 };
+
+export type NativeReceipt = { status: "included"; code: number; height: number } | { status: "pending" };
+
+/** Poll diana for the tx until it is included, or give up and report it pending. */
+export async function waitForNativeTx(txHash: string, fetchFn: typeof fetch = fetch,
+  poll = NATIVE_RECEIPT_POLL): Promise<NativeReceipt> {
+  for (let i = 0; i < poll.attempts; i++) {
+    if (i > 0) await new Promise((r) => setTimeout(r, poll.intervalMs));
+    try {
+      const res = await fetchFn(`${REST}/cosmos/tx/v1beta1/txs/${txHash}`);
+      if (!res.ok) continue;
+      const tx = (await res.json() as { tx_response?: { code?: number; height?: string } }).tx_response;
+      if (tx?.height && Number(tx.height) > 0) return { status: "included", code: tx.code ?? 0, height: Number(tx.height) };
+    } catch { /* not indexed yet */ }
+  }
+  return { status: "pending" };
+}
+
 const OUT_OF_GAS = /out of gas/i;
 const QOREX_REJECTION = /QoreX: .*(rejected|denied|cancel)/i;
 
