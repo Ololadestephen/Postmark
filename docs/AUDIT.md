@@ -5,6 +5,22 @@
 | 1 | 2026-11-20 | Ethereum (EVM/Solidity) | `src/PostmarkEscrow.sol` at `241d0c7` (deployed at `0xb781E296FB35ccd2497589526114373bA0bff79b`, now superseded) | [`audit/qcai-stage1-2026-11-20.pdf`](audit/qcai-stage1-2026-11-20.pdf) | 65/100, 6 findings (2 high, 2 medium, 1 low, 1 info) |
 | 2 | 2026-11-20 | Ethereum (EVM/Solidity) | `src/PostmarkEscrow.sol` at `6babd14` (report label: `PostmarkEscrowV2`) | [`audit/qcai-stage2-2026-11-20.pdf`](audit/qcai-stage2-2026-11-20.pdf) | 65/100, MEDIUM overall, 6 findings (1 high, 3 medium, 2 low) |
 
+## About the score
+
+Both runs used the same setting, "Ethereum (EVM/Solidity)", which the Build Before Q-Day builder FAQ
+recommends for Solidity contracts on QoreChain EVM; the "QoreChain (CosmWasm + PQC)" setting is for
+CosmWasm contracts. Quantum readiness is "not scored" because the QCAI only produces that rating under the
+CosmWasm setting today. In its place, [Juror-verifiable PQC checks](#juror-verifiable-pqc-checks) below
+links every `pqcVerify` and `pqcKeyStatus` call to its exact source lines and the tests that cover it.
+
+All 12 flags across the two runs were reviewed against the source. None is an exploitable defect: each one
+is a deliberate design choice (permissionless `reopen` and `resolveDispute` relays, native QOR only) or a
+risk the contract already handles (checked 0.8 arithmetic, fail-closed precompile parsing, fixed loop
+bounds). Each has named Foundry tests. Several suggested fixes would weaken the design. Restricting who may
+relay a dispute resolution or reopen an expired claim, for example, would let one party freeze a bounty, so
+the contract was not changed to chase the number. The audited source is the deployed bytecode, and the
+suite has 126 tests with 100% line coverage of `PostmarkEscrow.sol`.
+
 Every run 1 finding is answered below. None was an exploitable defect: each describes a risk the
 contract already handled, and the named tests prove it. After run 1 the source was hardened where
 each flag was raised (`6babd14`): documentation, named bounds and two defensive checks, with the
@@ -104,7 +120,7 @@ deployment `0xb781E296…f79b` is kept as superseded in `deployments/diana.json`
 
 ## Run 2 findings
 
-The score stayed at 65/100 (below the 70+ Top Quality threshold). Overall risk changed from HIGH to MEDIUM; quantum readiness was not scored. The report flags the following. No further contract change or redeploy was made for this run.
+The score stayed at 65/100. Overall risk changed from HIGH to MEDIUM; quantum readiness was not scored. The report flags the following. No further contract change or redeploy was made for this run.
 
 | Finding | Severity | Source review |
 |---|---|---|

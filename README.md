@@ -153,7 +153,7 @@ A verifier is an account with a registered ML-DSA-87 key that signs PAY or REFUN
 
 ## Audit
 
-Both QCAI runs (Nov 20, Ethereum EVM/Solidity) scored 65/100. Run 2 reported MEDIUM overall risk and did not meet the 70+ Top Quality threshold. The reports, source changes, and finding-by-finding responses are in [`docs/AUDIT.md`](docs/AUDIT.md).
+Both QCAI runs (Nov 20, Ethereum EVM/Solidity setting) scored 65/100; overall risk went from HIGH in run 1 to MEDIUM in run 2. Every finding from both runs is answered in [`docs/AUDIT.md`](docs/AUDIT.md) with the fix, the regression tests, or the reason it needs no contract change, next to both dated reports. That file also links every `pqcVerify` and `pqcKeyStatus` call to its exact source lines and covering tests. Quantum readiness shows "not scored" because the QCAI rates it only under the CosmWasm setting today.
 
 * [Library setup, API, example and limitations](src/test-utils/README.md)
 * [PostmarkEscrow specification and test plan](SPEC.md)
