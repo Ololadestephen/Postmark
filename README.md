@@ -71,6 +71,12 @@ signing): click *Sign with QoreX*, approve, and the app verifies the returned si
 registered key before anything is sent. QoreX still cannot send EVM transactions, so transactions come from
 an EVM wallet (for example MetaMask) holding the **same account** as QoreX.
 
+**Send with QoreX (no MetaMask).** Claim, finalize and withdraw also offer *Send with QoreX*: the app wraps the
+escrow call in a `MsgCrossVMCall` and QoreX signs and broadcasts it (`signAndBroadcast`), with no EVM window.
+Before sending it shows the maximum fee: withdraw uses a fixed 1,000,000 gas limit (0.10 QOR); claim and finalize
+are simulated on diana for the exact call and padded for the hybrid signature. Funding a bounty and posting a
+dispute bond stay on MetaMask, because a native cross-VM call can't attach QOR.
+
 For developers, **Advanced: use the local signer** keeps the older terminal flow: `scripts/signer.mjs`, a small
 HTTP service on 127.0.0.1 that holds the ML-DSA-87 key, asks for confirmation on the TTY, and only signs after
 re-verifying the exact bytes the escrow will hash:

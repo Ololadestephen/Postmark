@@ -11,6 +11,7 @@ import { StatusChip, Qor, Countdown, shortAddr, Skeleton } from "../components/u
 import { useTxAction } from "../hooks/useTxAction";
 import { useToast } from "../components/Toasts";
 import { TxStatusPanel } from "./TxWidgets";
+import { NativeSend } from "./NativeSend";
 import TxActions from "./TxActions";
 import { sameAddress } from "../chain/address";
 import { nowSec } from "../chain/time";
@@ -49,6 +50,9 @@ function Credits() {
           Withdraw
         </button>
       </div>
+      <NativeSend tone="dark" call={{ functionName: "withdraw", args: [] }} label="Withdraw with QoreX" disabled={tx.busy}
+        invalidates={[["credits", address]]}
+        onConfirmed={() => toast({ kind: "success", title: "Withdrawn", text: "The QOR is on its way to your wallet." })} />
       <dl className="mt-4 flex gap-8 border-t border-paper/10 pt-4 text-sm">
         <div>
           <dt className="font-mono text-[10px] uppercase tracking-[0.18em] text-paper/60">ungated</dt>
