@@ -58,10 +58,7 @@ The web app targets the production deployment by default. To point it at the e2e
 cd app && VITE_DEPLOYMENT=e2e npm run dev     # or `npm run build:e2e` for a built bundle
 ```
 
-Sending transactions needs two things: a connected **QoreX wallet** (EVM address on chain 9800)
-and a live **scoped EVM window** for the account — on diana, EVM writes are authorized through a
-Cosmos-lane `MsgOpenEVMWindow` (block limit, tx count, value cap, optional allowed targets). The
-app's preflight shows the exact QoreX steps when a window is missing or too small.
+Sending transactions needs two things: a connected EVM wallet on chain 9800 and a live **EVM access window** for the account. On diana, EVM writes are authorised through a Cosmos-lane `MsgOpenEVMWindow` (block limit, tx count, value cap). QoreX manages that message itself and rejects it from a website, so a user opens the window by hand: in QoreX on the same account, tap the **MetaMask on QoreChain** card (the 0x mark; on the phone app also Settings, Security, EVM access window), set **Blocks** 1000 (about 20 minutes), **Max transactions** 5 and a **Spending cap** that covers the amount plus fees (the cap counts each transaction's maximum fee), then confirm. Open it before clicking the action, because opening it advances the account nonce. The app shows these steps wherever a window is missing and has an "I opened it, check again" button.
 
 ### Signing: QoreX, with a local signer as an Advanced option
 
