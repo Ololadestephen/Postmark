@@ -75,6 +75,10 @@ async function qorexSign(native: QorexNativeProvider, qor1: string, message: `0x
   return decodePqSignature(sig);
 }
 
+/** Signs a verifier-listing message with QoreX (same prefix handling as claims). Interactive: call from a click. */
+export const signVerifierListing = (native: QorexNativeProvider, qor1: string, message: `0x${string}`) =>
+  qorexSign(native, qor1, message);
+
 export const localSigner: PqSigner = {
   id: "local",
   get label() { return `Local signer (${signerUrl()})`; },

@@ -28,6 +28,8 @@ export const EVM_WS = diana.rpcUrls.default.webSocket![0];
 export const REST =
   typeof window === "undefined" ? "https://api-testnet.qore.host" : "/qore-rest";
 export const NATIVE_CHAIN_ID = "qorechain-diana";
+/** Public GitHub issue where verifiers list themselves with a signed comment. */
+export const VERIFIER_REGISTRY = { ownerRepo: "Ololadestephen/Postmark", issue: 6 } as const;
 export const MESSAGE_PREFIX = `qorechain-msg-v1|${NATIVE_CHAIN_ID}|`;
 export const EXPLORER = "https://dashboard.qorechain.io/explorer";
 export const PQC_VERIFY_PRECOMPILE = "0x0000000000000000000000000000000000000a01" as const;
