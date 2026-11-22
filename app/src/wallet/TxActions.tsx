@@ -6,6 +6,7 @@ import { Card, SectionLabel } from "../components/ui";
 import { sameAddress } from "../chain/address";
 import { nowSec } from "../chain/time";
 import type { Bounty } from "../chain/client";
+import { NativeSend } from "./NativeSend";
 
 function ActionButton({ label, run, busy }:
   { label: string; run: () => void; busy: boolean }) {
@@ -42,6 +43,7 @@ function ActionsInner({ id, bounty, connected }: { id: bigint; bounty: Bounty; c
           {finalize ? "Challenge window closed — ready to finalize. Connect a wallet to finalize this payout; anyone can."
             : "This claim has expired. Connect a wallet to reopen the bounty; anyone can."}
         </p>
+        {finalize && <NativeSend call={{ functionName: "finalize", args: [id] }} label="Finalize with QoreX" onConfirmed={done} />}
       </Card>
     );
   }
@@ -56,6 +58,7 @@ function ActionsInner({ id, bounty, connected }: { id: bigint; bounty: Bounty; c
         {reopen && <ActionButton busy={busy} label="Reopen expired claim"
           run={() => void tx.run({ functionName: "reopen", args: [id], onConfirmed: done })} />}
       </div>
+      {finalize && <NativeSend call={{ functionName: "finalize", args: [id] }} label="Finalize with QoreX" onConfirmed={done} disabled={busy} />}
       <TxPanel state={tx.state} />
     </Card>
   );

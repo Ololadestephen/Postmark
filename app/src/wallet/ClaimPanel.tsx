@@ -25,6 +25,7 @@ import { sameAddress } from "../chain/address";
 import { errorMessage, qorexFailureToast } from "../chain/errors";
 import { nowSec } from "../chain/time";
 import { AccountFix } from "./AccountFix";
+import { NativeSend } from "./NativeSend";
 import { useBountyRole } from "./role";
 import type { Bounty } from "../chain/client";
 import type { BountyMeta } from "../chain/indexer";
@@ -257,6 +258,9 @@ function ClaimPanelBody({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta
                 className="mt-3 rounded-lg bg-deep px-5 py-2 text-sm font-medium text-paper hover:brightness-110 disabled:opacity-40">
                 {tx.busy ? "Working…" : "Claim bounty"}
               </button>
+              <NativeSend call={{ functionName: "claim", args: [id, claim!.identityHash, signature] }} sender={address} label="Claim with QoreX"
+                disabled={tx.busy} invalidates={[["bounty", id.toString()], ["index"], ["nextBountyId"]]}
+                onConfirmed={() => toast({ kind: "success", title: "Claim stamped on chain", text: "Your claim is recorded; verifiers can review it now." })} />
             </>
           )}
           {signError && <p role="alert" className="mt-2 text-sm text-orange">{signError}</p>}
