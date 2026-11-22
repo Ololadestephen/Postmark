@@ -3,15 +3,18 @@
 // Serves the built app, opens one headed Chromium window per role, injects each
 // profile's EIP-6963 test wallet plus a role badge, optionally opens scoped EVM
 // windows, and prints the signer commands to run in separate terminals.
-//   npm run demo -- [--github stub|live] [--no-windows] [--headless]
+//   npm run demo -- [--github stub|live] [--roles r1,r2,…] [--no-windows] [--headless] [--smoke]
+// --roles opens browser windows, scoped EVM windows and signer commands only for the
+// named roles (default: all six — funder, claimant, verifier0, verifier1, verifier2,
+// disputer). A run without a dispute needs: --roles funder,claimant,verifier0,verifier1
 import { execFileSync, spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { chromium } from "@playwright/test";
 import { installTestWallet, mockGithub, connectInjected,
   windowCtl, profileAddress, nodePublic, E2E_ESCROW } from "../e2e/testWallet.ts";
 import { postmarkEscrowAbi } from "../src/chain/abi.ts";
+import { parseRoles } from "./demoRoles.ts";
 
-const ROLES = ["funder", "claimant", "verifier0", "verifier1", "verifier2", "disputer"];
 const SIGNER_PORTS = { claimant: 47321, verifier0: 47322, verifier1: 47323, verifier2: 47324 };
 const PORT = 4173;
 const PROFILES = `${homedir()}/.config/postmark/e2e`;
@@ -25,6 +28,9 @@ const smoke = args.includes("--smoke");
 if (!["stub", "live"].includes(github)) {
   console.error("--github must be stub|live"); process.exit(2);
 }
+let ROLES;
+try { ROLES = parseRoles(args); }
+catch (e) { console.error(`[demo] ${e.message}`); process.exit(2); }
 
 const ts = () => new Date().toISOString().slice(11, 19);
 const log = (m) => console.log(`[demo ${ts()}] ${m}`);
@@ -175,11 +181,16 @@ async function runSmoke(facts) {
   log("roles connected — running read-only walkthrough checks");
   // two verifier windows on the live Pending bounty: same identity match,
   // same PR checks, identical PAY evidence hash
-  const [first, second] = [await reviewAsVerifier("verifier0"), await reviewAsVerifier("verifier1")];
-  if (first !== second) throw new Error(`evidence hashes differ: ${[first, second]}`);
-  log("smoke: identical PAY evidenceHash in both verifier windows");
-  await claimantFindsClaimLine(facts);
-  log("smoke OK — all roles connected, badges visible");
+  const verifiers = ROLES.filter((r) => r.startsWith("verifier")).slice(0, 2);
+  const hashes = [];
+  for (const v of verifiers) hashes.push(await reviewAsVerifier(v));
+  if (hashes.length === 2) {
+    if (hashes[0] !== hashes[1]) throw new Error(`evidence hashes differ: ${hashes}`);
+    log(`smoke: identical PAY evidenceHash in ${verifiers.join(" and ")}`);
+  } else log("smoke: fewer than two verifier roles — skipping the evidenceHash comparison");
+  if (ROLES.includes("claimant")) await claimantFindsClaimLine(facts);
+  else log("smoke: no claimant role — skipping the claim-line check");
+  log(`smoke OK — ${ROLES.join(", ")} connected, badges visible`);
   await cleanup();
 }
 
@@ -188,7 +199,9 @@ function printInstructions() {
 [demo] Signing roles need the local PQ signer, one terminal tab each
        (interactive TTY confirm — no --yes):
 `);
-  for (const [role, port] of Object.entries(SIGNER_PORTS)) {
+  const signers = Object.entries(SIGNER_PORTS).filter(([role]) => ROLES.includes(role));
+  if (signers.length === 0) console.log("  (none of the selected roles signs)\n");
+  for (const [role, port] of signers) {
     console.log(
       `  # ${role} (port ${port})\n` +
       `  node scripts/signer.mjs serve --env ${PROFILES}/${role} ` +
@@ -216,6 +229,7 @@ async function main() {
   const mergedAt = new Date(Number(unixNow()) * 1000).toISOString();
   const openId = await findOpenBounty(pub, nextId);
   log(`nextBountyId ${nextId}; fixed merged_at ${mergedAt}; open bounty ${openId ?? "none"}`);
+  log(`roles: ${ROLES.join(", ")}`);
 
   openRoleWindows();
   browser = await chromium.launch({ headless });
