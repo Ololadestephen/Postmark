@@ -73,7 +73,7 @@ const goodComments = () => [
 ];
 const mergedPull = (over: Record<string, unknown> = {}) => ({
   number: 2, title: "fix", state: "closed", merged: true, merged_at: "2026-11-18T10:00:00Z",
-  merge_commit_sha: "f".repeat(40), user: { login: "e2e-claimant" }, html_url: "", ...over });
+  merge_commit_sha: "f".repeat(40), body: "Fixes #1", user: { login: "e2e-claimant" }, html_url: "", ...over });
 
 beforeEach(() => {
   Object.assign(m, {
@@ -125,6 +125,15 @@ describe("usePrCheck", () => {
     expect(result.current.candidates).toEqual([2]);
     await act(() => result.current.check(META.ownerRepo, 2));
     expect(result.current.prCheck?.checks.every((c) => c.ok)).toBe(true);
+  });
+
+  it("shows the Fixes check for issue bounties only, and flags a mere mention", async () => {
+    const issue = hook();
+    await act(() => issue.result.current.check(META.ownerRepo, 2));
+    expect(issue.result.current.prCheck?.checks.map((c) => c.label)).toContain("PR says Fixes #1");
+    const pull = hook(1);
+    await act(() => pull.result.current.loadCandidates());
+    expect(pull.result.current.prCheck?.checks.some((c) => /Fixes/.test(c.label))).toBe(false);
   });
 
   it("checks the item itself when it is a pull request", async () => {

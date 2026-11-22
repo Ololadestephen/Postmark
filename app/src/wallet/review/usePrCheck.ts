@@ -24,7 +24,8 @@ export function usePrCheck(meta: BountyMeta, bounty: Bounty, identityLogin: stri
     try {
       const pr = await getPull(repo, prNumber);
       const checks = checkPull(pr, {
-        expectedRepo: meta.ownerRepo, prRepo: repo, deadline: bounty.deadline, identityLogin });
+        expectedRepo: meta.ownerRepo, prRepo: repo, deadline: bounty.deadline, identityLogin,
+        ...(meta.kind === 0 ? { closesIssue: { ownerRepo: meta.ownerRepo, number: Number(meta.number) } } : {}) });
       setPrCheck({ pr, repo, number: prNumber, checks });
     } catch (e) {
       setPrCheck(null);

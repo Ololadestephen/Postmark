@@ -89,7 +89,7 @@ export interface GhIssue {
 }
 export interface GhPull {
   number: number; title: string; state: string; merged: boolean;
-  merged_at: string | null; merge_commit_sha: string | null;
+  merged_at: string | null; merge_commit_sha: string | null; body: string | null;
   user: { login: string }; html_url: string;
 }
 export const getIssue = (ownerRepo: string, n: number) =>

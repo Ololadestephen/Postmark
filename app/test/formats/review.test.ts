@@ -11,7 +11,7 @@ const ESCROW = "0xae80681e92b63efea78cb742dd612ecc940b896a" as const;
 
 const pr = (over: Partial<GhPull>): GhPull => ({
   number: 7, title: "fix", state: "closed", merged: true,
-  merged_at: "2026-01-01T00:00:00Z", merge_commit_sha: "a".repeat(40),
+  merged_at: "2026-01-01T00:00:00Z", merge_commit_sha: "a".repeat(40), body: null,
   user: { login: "e2e-claimant" }, html_url: "", ...over,
 });
 

@@ -57,7 +57,7 @@ export async function mockGithub(page: Page, opts: {
   };
   const pull = opts.pull ?? {
     number: 2, title: "wire the funder flow", state: "closed", merged: true,
-    merged_at: opts.mergedAt ?? new Date().toISOString(), merge_commit_sha: "f".repeat(40),
+    merged_at: opts.mergedAt ?? new Date().toISOString(), merge_commit_sha: "f".repeat(40), body: "Fixes #1",
     user: { login: "e2e-claimant" }, html_url: `${SANDBOX}/pull/2`,
   };
   const comments = opts.synthesize
