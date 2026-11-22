@@ -131,6 +131,9 @@ The score stayed at 65/100. Overall risk changed from HIGH to MEDIUM; quantum re
 | Unbounded loop in key validation | Medium | Verifier iteration is fixed at three; signer lists are checked to contain two or three entries before iteration. The assembly copy is bounded by the validated return-data length, not by the bounty count. |
 | Missing ERC-20 interface | Low | Native test QOR only; token support is intentionally out of scope. |
 
+### Incident: a mention paid bounty #2 (22 Nov 2026)
+On 22 Nov the bots signed PAY on bounty #2 (issue #2, CSV export) for PR #9, which fixes issue #8. A maintainer comment on PR #9 mentioned "bounty #2", GitHub recorded that as a cross-reference on issue #2, and the bots counted any cross-referenced merged PR by the claimant as the work. The claimant was the right person, but the work was not for this issue. Verdict tx `0xb0dd5576d2abf313f008a2a73d6420e510e4731941466e59bb248e6999f7cc83`. We let the 0.05 test QOR payout stand rather than freeze it in a dispute. Fix: an issue bounty now only counts a merged PR whose title or description says `Fixes`, `Closes` or `Resolves` that exact issue; mentions no longer count, for payouts or refunds.
+
 ## Juror-verifiable PQC checks
 
 Every place `src/PostmarkEscrow.sol` calls `pqcVerify` or `pqcKeyStatus`, directly or through a helper, with a permalink to the exact lines at commit `6babd14` (the audited and deployed source), what the check protects, and the Foundry tests that cover it. `forge test` runs all of them against real ML-DSA-87 signatures.
