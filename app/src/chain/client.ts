@@ -4,7 +4,8 @@ import { postmarkEscrowAbi } from "./abi";
 
 export const httpClient = createPublicClient({
   chain: diana,
-  transport: http(EVM_RPC, { timeout: 20_000 }),
+  // the node answers JSON-RPC batches, so a page's parallel reads share one round trip
+  transport: http(EVM_RPC, { timeout: 20_000, batch: { wait: 8 } }),
 });
 
 let wsClient: PublicClient | null = null;
