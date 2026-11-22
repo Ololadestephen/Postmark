@@ -64,7 +64,7 @@ function ClaimPanelBody({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta
     return <Card className="text-sm text-gray">This is your bounty. Share the link; a contributor claims it here.</Card>;
   }
   if (role.role === "verifier") {
-    return <Card className="text-sm text-gray">You're verifier #{role.verifierIndex} on this bounty, so you can't claim it. You'll review once someone claims and their PR is merged.</Card>;
+    return <Card className="text-sm text-gray">You're verifier #{role.verifierIndex + 1} on this bounty, so you can't claim it. You'll review once someone claims and their PR is merged.</Card>;
   }
   const t = nowSec();
   if (t >= bounty.deadline) {

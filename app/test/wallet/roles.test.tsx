@@ -38,7 +38,7 @@ describe("review link", () => {
   it("shows only to verifiers, with their index", () => {
     m.address = VERIFIERS[1];
     const { unmount } = view(<VerifierReviewLink id={7n} bounty={claimed} />);
-    expect(screen.getByRole("link", { name: /You're verifier #1 on this bounty — open the review tool/ })).toHaveAttribute("href", "/bounty/7/review");
+    expect(screen.getByRole("link", { name: /You're verifier #2 on this bounty — open the review tool/ })).toHaveAttribute("href", "/bounty/7/review");
     unmount();
     for (const a of [FUNDER, CLAIMANT, undefined]) {
       m.address = a;

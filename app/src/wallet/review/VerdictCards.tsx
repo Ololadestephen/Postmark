@@ -62,7 +62,7 @@ export function SignCard({ myVerifierIndex, usesQorex, checkFirst = false, misma
     <Card tone="accent">
       <SectionLabel tone="accent">sign the verdict</SectionLabel>
       {myVerifierIndex >= 0 && (
-        <p className="mt-2 text-xs text-gray">You are verifier #{myVerifierIndex}.</p>
+        <p className="mt-2 text-xs text-gray">You are verifier #{myVerifierIndex + 1}.</p>
       )}
       {mismatch && <><Alert>{mismatch}</Alert><AccountFix /></>}
       <AdvancedSigner showPort>

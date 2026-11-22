@@ -110,7 +110,7 @@ describe("review cards", () => {
     const onSign = vi.fn();
     const { rerender } = render(<SignCard myVerifierIndex={1} usesQorex={false} signing={false}
       error="bad" signedIndex={1} onSign={onSign} />);
-    expect(screen.getByText("You are verifier #1.")).toBeInTheDocument();
+    expect(screen.getByText("You are verifier #2.")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("8-char code")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Sign with the local signer" }));
     expect(onSign).toHaveBeenCalled();
