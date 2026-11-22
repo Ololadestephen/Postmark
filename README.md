@@ -85,6 +85,20 @@ start unless the derived key equals the account's live registered key. It prints
 the app must send on every request. Offline `sign-claim` / `sign-verdict` subcommands print a
 signature hex for copy/paste.
 
+### Local demo
+
+`cd app && npm run demo` serves the e2e build and opens one headed Chromium window per role (funder, claimant,
+verifier0, verifier1, verifier2, disputer), each with its own test wallet, a scoped EVM window and the signer
+command to run. `--roles` limits all three to the named roles; a run without a dispute only needs four:
+
+```sh
+cd app && npm run demo -- --roles funder,claimant,verifier0,verifier1
+```
+
+Other flags: `--github stub|live` (default `stub`), `--no-windows` (read-only, no scoped windows), `--headless`
+and `--smoke` (read-only checks, then exit; works with any `--roles` subset). An unknown role name exits with
+the list of valid roles.
+
 ## Production bounties
 
 Real GitHub issues in [Ololadestephen/postmark](https://github.com/Ololadestephen/postmark), funded on the production escrow
