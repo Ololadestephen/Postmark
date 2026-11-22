@@ -9,6 +9,14 @@ export type NativeCall =
   | { functionName: "finalize"; args: readonly [bigint] }
   | { functionName: "withdraw"; args: readonly [] };
 
+/**
+ * Off unless built with VITE_QOREX_NATIVE=1: QoreX currently refuses MsgCrossVMCall ("QoreX cannot show
+ * what /qorechain.crossvm.v1.MsgCrossVMCall does, so it will not sign it"). Switch on once it can display it.
+ */
+export const qorexNativeEnabled = () => import.meta.env.VITE_QOREX_NATIVE === "1";
+
+export const QOREX_UNSUPPORTED_TEXT = "QoreX can't sign this transaction type yet. Use MetaMask instead.";
+
 export const CROSS_VM_TYPE_URL = "/qorechain.crossvm.v1.MsgCrossVMCall";
 
 /** QoreX's native fee: 0.1 uqor per gas (100,000 uqor for a 1,000,000 gas limit on diana). */
@@ -128,8 +136,11 @@ const OUT_OF_GAS = /out of gas/i;
 const QOREX_REJECTION = /QoreX: .*(rejected|denied|cancel)/i;
 
 /** Plain-English failure for a QoreX native send: rejection, wrong network or out of gas. */
-export function explainNativeFailure(err: unknown, gasLimit: number): { kind: "rejected" | "network" | "gas" | "other"; text: string } {
+export function explainNativeFailure(err: unknown, gasLimit: number): { kind: "rejected" | "network" | "gas" | "unsupported" | "other"; text: string } {
   const text = errorMessage(err);
+  if (/cannot (show|display) what|will not sign it|cannot display/i.test(text)) {
+    return { kind: "unsupported", text: QOREX_UNSUPPORTED_TEXT };
+  }
   if (/does not match the active network|qorechain-vladi|QoreX is on mainnet/i.test(text)) {
     return { kind: "network", text: `${QOREX_MAINNET_TITLE}. ${QOREX_MAINNET_TEXT}` };
   }

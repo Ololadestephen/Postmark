@@ -112,6 +112,10 @@ describe("native failures", () => {
     expect(explainNativeFailure(new Error("QoreX: signature rejected"), 1_000_000))
       .toEqual({ kind: "rejected", text: "You cancelled the request in QoreX. Nothing was sent." });
   });
+  it("maps QoreX refusing the message type", () => {
+    expect(explainNativeFailure(new Error("QoreX cannot show what /qorechain.crossvm.v1.MsgCrossVMCall does, so it will not sign it."), 1))
+      .toEqual({ kind: "unsupported", text: "QoreX can't sign this transaction type yet. Use MetaMask instead." });
+  });
   it("names the wrong network with the switch steps", () => {
     const f = explainNativeFailure(new Error("chain id qorechain-diana does not match the active network qorechain-vladi"), 1);
     expect(f.kind).toBe("network");

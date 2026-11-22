@@ -15,7 +15,7 @@ export interface NativeTxState {
   measured?: boolean | undefined;
   txHash?: string | undefined;
   error?: string | undefined;
-  errorKind?: "rejected" | "network" | "gas" | "other";
+  errorKind?: "rejected" | "network" | "gas" | "unsupported" | "other";
 }
 
 type Prepared = { call: NativeCall; msg: { typeUrl: string; value: Uint8Array } };

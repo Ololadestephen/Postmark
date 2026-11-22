@@ -27,8 +27,22 @@ const renderSend = (ui: React.ReactElement) =>
   render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
 
 describe("Send with QoreX", () => {
-  beforeEach(() => { m.signAndBroadcast.mockReset(); m.network = "testnet"; m.linked = true; });
-  afterEach(cleanup);
+  beforeEach(() => { vi.stubEnv("VITE_QOREX_NATIVE", "1"); m.signAndBroadcast.mockReset(); m.network = "testnet"; m.linked = true; });
+  afterEach(() => { cleanup(); vi.unstubAllEnvs(); });
+
+  it("is hidden unless the build sets VITE_QOREX_NATIVE=1", () => {
+    vi.stubEnv("VITE_QOREX_NATIVE", "");
+    const { container } = renderSend(<NativeSend call={{ functionName: "withdraw", args: [] }} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("says QoreX can't sign the message type yet when QoreX refuses it", async () => {
+    m.signAndBroadcast.mockRejectedValue(new Error("QoreX cannot show what /qorechain.crossvm.v1.MsgCrossVMCall does, so it will not sign it."));
+    renderSend(<NativeSend call={{ functionName: "withdraw", args: [] }} />);
+    await userEvent.click(screen.getByRole("button", { name: "Send with QoreX" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Confirm in QoreX" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("QoreX can't sign this transaction type yet. Use MetaMask instead.");
+  });
 
   it("shows the max fee, then sends the withdraw as a MsgCrossVMCall", async () => {
     m.signAndBroadcast.mockResolvedValue({ txHash: "ABCDEF0123456789AB", code: 0, height: 10, shield: "shielded" });

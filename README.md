@@ -71,7 +71,7 @@ signing): click *Sign with QoreX*, approve, and the app verifies the returned si
 registered key before anything is sent. QoreX still cannot send EVM transactions, so transactions come from
 an EVM wallet (for example MetaMask) holding the **same account** as QoreX.
 
-**Send with QoreX (no MetaMask).** Claim, finalize and withdraw also offer *Send with QoreX*: the app wraps the
+**Send with QoreX (no MetaMask), off by default.** QoreX currently refuses `MsgCrossVMCall` ("QoreX cannot show what /qorechain.crossvm.v1.MsgCrossVMCall does, so it will not sign it"), so the buttons only appear in a build with `VITE_QOREX_NATIVE=1`. With it on, claim, finalize and withdraw also offer *Send with QoreX*: the app wraps the
 escrow call in a `MsgCrossVMCall` and QoreX signs and broadcasts it (`signAndBroadcast`), with no EVM window.
 Before sending it shows the maximum fee: withdraw uses a fixed 1,000,000 gas limit (0.10 QOR); claim and finalize
 are simulated on diana for the exact call and padded for the hybrid signature. Funding a bounty and posting a

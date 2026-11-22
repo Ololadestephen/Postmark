@@ -1,6 +1,6 @@
 import type { QueryKey } from "@tanstack/react-query";
 import { explorerTx } from "../chain/config";
-import type { NativeCall } from "../chain/native";
+import { qorexNativeEnabled, type NativeCall } from "../chain/native";
 import { qorexFailureToast } from "../chain/errors";
 import { useNativeTx } from "../hooks/useNativeTx";
 import { useToast } from "../components/Toasts";
@@ -21,6 +21,7 @@ export function NativeSend({ call, label = "Send with QoreX", onConfirmed, inval
   tone?: "light" | "dark";
 }) {
   const qorex = useQorex();
+  if (!qorexNativeEnabled()) return null;
   if (!qorex.native?.capabilities?.includes("signAndBroadcast")) return null;
   return <NativeSendInner {...{ call, label, onConfirmed, invalidates, disabled, tone }} />;
 }
