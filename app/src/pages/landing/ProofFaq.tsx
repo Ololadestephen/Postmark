@@ -19,7 +19,7 @@ export function Proof() {
                 </a>
               ) : (
                 <p className="mt-2 text-sm text-ink">
-                  {p.count ? <><CountText text={p.count} /> {p.value}</> : p.value}
+                  {p.count ? <><CountText animate text={p.count} /> {p.value}</> : p.value}
                 </p>
               )}
               {p.hash && <p className="mt-2 break-all font-mono text-[11px] text-charcoal"><ScrambleText text={p.hash} /></p>}

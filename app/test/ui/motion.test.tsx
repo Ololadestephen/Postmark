@@ -18,7 +18,7 @@ vi.mock("../../src/components/reactbits/LogoLoop", () => ({
 }));
 
 import {
-  AnimatedQor, BlurHeadline, CountText, ScrambleText, TextMarquee, countProps,
+  BlurHeadline, CountText, ScrambleText, TextMarquee, countProps,
 } from "../../src/components/motion";
 
 beforeEach(() => { state.reduce = true; });
@@ -37,11 +37,6 @@ describe("reduced motion renders final content", () => {
     render(<CountText text="2.56" suffix=" x" />);
     expect(screen.getByText("2.56 x")).toBeInTheDocument();
   });
-  it("AnimatedQor equals formatQor and keeps the exact tooltip", () => {
-    const wei = 2_560_000_000_000_000_000n;
-    render(<AnimatedQor wei={wei} />);
-    expect(screen.getByTitle(/2.56 QOR \(2560000000000000000 wei\)/)).toHaveTextContent(`${formatQor(wei)} QOR`);
-  });
   it("TextMarquee shows one static labelled list", () => {
     render(<TextMarquee items={["a", "b"]} ariaLabel="Built on" />);
     expect(screen.getByRole("list", { name: "Built on" }).querySelectorAll("li")).toHaveLength(2);
@@ -54,8 +49,13 @@ describe("animated path", () => {
     render(<h1><BlurHeadline line1="Bounties" line2="pay" accent="verified" tail="." accentClass="text-deep" /></h1>);
     expect(screen.getByRole("heading", { name: "Bounties pay verified." })).toBeInTheDocument();
   });
-  it("CountText exposes the final value and hides the counter once the chunk is ready off-screen", async () => {
+  it("CountText shows the plain value at once unless animate is set", () => {
     const { container } = render(<CountText text="18" />);
+    expect(container).toHaveTextContent("18");
+    expect(container.querySelector(".sr-only")).toBeNull();
+  });
+  it("CountText exposes the final value and hides the counter once the chunk is ready off-screen (animate)", async () => {
+    const { container } = render(<CountText animate text="18" />);
     await waitFor(() => expect(container.querySelector(".sr-only")).toHaveTextContent("18"));
     expect(container.querySelector("[aria-hidden]")).not.toBeNull();
   });

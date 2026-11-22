@@ -5,7 +5,6 @@ import {
   StatusChip, Countdown, Qor, Skeleton, EmptyState, ErrorState, AddressLink, STATE_NAMES,
 } from "../components/ui";
 import { PageBody, PageHeader } from "../components/Page";
-import { AnimatedQor, CountText } from "../components/motion";
 import { statusStyle } from "../components/status";
 import { explainError } from "../chain/errors";
 import { isZeroAddress } from "../chain/address";
@@ -152,10 +151,10 @@ export default function Explore() {
           <h1 className="font-sans text-4xl font-semibold tracking-tight">Bounties</h1>
           <p className="mt-2 text-sm text-charcoal">GitHub issues funded in test QOR on diana.</p>
           <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Stat label="bounties">{ids ? <CountText text={String(ids.length)} /> : "…"}</Stat>
-            <Stat label="open">{loading ? "…" : <CountText text={String(counts.Open ?? 0)} />}</Stat>
-            <Stat label="paid">{loading ? "…" : <CountText text={String(counts.Paid ?? 0)} />}</Stat>
-            <Stat label="escrowed">{liabilities.data !== undefined ? <AnimatedQor wei={liabilities.data} /> : "…"}</Stat>
+            <Stat label="bounties">{ids ? ids.length : "…"}</Stat>
+            <Stat label="open">{loading ? "…" : counts.Open ?? 0}</Stat>
+            <Stat label="paid">{loading ? "…" : counts.Paid ?? 0}</Stat>
+            <Stat label="escrowed">{liabilities.data !== undefined ? <Qor wei={liabilities.data} /> : "…"}</Stat>
           </div>
         </div>
       </PageHeader>

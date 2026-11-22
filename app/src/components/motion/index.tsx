@@ -1,7 +1,6 @@
 import { lazy, Suspense, type ComponentProps, type ReactNode } from "react";
 import { useReducedMotion } from "motion/react";
 import { Link } from "react-router";
-import { exactQor, formatQor } from "../qor";
 import BlurText from "../reactbits/BlurText";
 import { createLoader, useEarlyAnimation } from "./early";
 
@@ -97,12 +96,14 @@ export function countProps(text: string): { to: number; decimals: number } | nul
   return { to: Number(text), decimals: text.split(".")[1]?.length ?? 0 };
 }
 
-/** Counts up to a numeric string and ends on exactly that string. */
-export function CountText({ text, className, suffix = "" }: { text: string; className?: string; suffix?: string }) {
+/** Shows a number; counts up to it only when `animate` is set (the landing page). Data pages show values
+ * the moment they arrive. */
+export function CountText({ text, className, suffix = "", animate = false }:
+  { text: string; className?: string; suffix?: string; animate?: boolean }) {
   const reduce = useReducedMotion();
   const props = countProps(text);
   const [ref, Animated] = useEarlyAnimation<CountUpProps, HTMLSpanElement>(countUpLoader);
-  const counting = !reduce && props && Animated;
+  const counting = animate && !reduce && props && Animated;
   return (
     <span ref={ref} className={className}>
       {counting ? (
@@ -111,15 +112,6 @@ export function CountText({ text, className, suffix = "" }: { text: string; clas
           <span aria-hidden><Animated {...props} trigger="view" duration={1.2} suffix={suffix} /></span>
         </>
       ) : `${text}${suffix}`}
-    </span>
-  );
-}
-
-/** QOR amount that counts up to exactly formatQor(wei) and keeps the exact value in its tooltip. */
-export function AnimatedQor({ wei, className }: { wei: bigint; className?: string }) {
-  return (
-    <span className={className} title={exactQor(wei)}>
-      <CountText text={formatQor(wei)} /> <span className="text-gray">QOR</span>
     </span>
   );
 }
