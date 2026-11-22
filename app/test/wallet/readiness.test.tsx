@@ -12,6 +12,20 @@ const ready: ReadinessInput = {
 const byId = (i: ReadinessInput) => Object.fromEntries(readinessRows(i).map((r) => [r.id, r]));
 
 describe("readiness rows", () => {
+  it("offers the accounts fix on a QoreX/wallet mismatch", () => {
+    const row = byId({ ...ready, account: FUNDER }).qorex!;
+    expect(row.status).toBe("todo");
+    expect(row.help).toBe("accounts");
+  });
+  it("adds a QoreX-on-testnet row only once QoreX is linked and its network is known", () => {
+    expect(byId(ready).qorexNet).toBeUndefined();
+    expect(byId({ ...ready, qorexNetwork: "unknown" }).qorexNet).toBeUndefined();
+    expect(byId({ ...ready, qorAddress: null, qorexNetwork: "mainnet" }).qorexNet).toBeUndefined();
+    expect(byId({ ...ready, qorexNetwork: "testnet" }).qorexNet).toMatchObject({ label: "QoreX on testnet", status: "ok" });
+    const bad = byId({ ...ready, qorexNetwork: "mainnet" }).qorexNet!;
+    expect(bad.status).toBe("todo");
+    expect(bad.hint).toMatch(/tap the version number at the bottom 7 times/);
+  });
   it("is all green when everything is in place", () => {
     expect(readinessRows(ready).map((r) => r.status)).toEqual(["ok", "ok", "ok", "ok", "ok", "ok"]);
   });

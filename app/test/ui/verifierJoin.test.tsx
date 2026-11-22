@@ -6,10 +6,11 @@ import { evmToQor } from "../../src/chain/bech32";
 
 const ADDR = "0xA46B8DC7593eDEe0f31b6F7fD1362e855Ad50693";
 const m = vi.hoisted(() => ({
-  connectAccount: vi.fn(), sign: vi.fn(), toast: vi.fn(), live: true,
+  connectAccount: vi.fn(), sign: vi.fn(), toast: vi.fn(), live: true, net: undefined as string | undefined,
   state: { installed: true, native: {}, qorAddress: null as string | null },
 }));
 vi.mock("../../src/wallet/qorex", () => ({
+  useQorexNetwork: () => m.net,
   useQorex: () => ({ ...m.state, eip1193: null, accounts: [], evmCanSend: false, canSignArbitrary: true, connectAccount: m.connectAccount }),
 }));
 vi.mock("../../src/wallet/pqSigner", () => ({ signVerifierListing: m.sign }));
@@ -28,11 +29,19 @@ const view = () => render(
 beforeEach(() => {
   vi.clearAllMocks();
   m.live = true;
+  m.net = undefined;
   m.state = { installed: true, native: {}, qorAddress: null };
   m.sign.mockResolvedValue(`0x${"ab".repeat(4627)}`);
 });
 
 describe("verifier sign-up page", () => {
+  it("tells a user on QoreX mainnet how to switch", () => {
+    m.net = "mainnet";
+    m.state = { installed: true, native: {}, qorAddress: evmToQor(ADDR) };
+    view();
+    expect(screen.getByRole("alert")).toHaveTextContent(/QoreX is on mainnet.*7 times/);
+  });
+
   it("makes no QoreX call until the user clicks", () => {
     view();
     expect(m.connectAccount).not.toHaveBeenCalled();

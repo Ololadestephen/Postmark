@@ -49,6 +49,22 @@ export function isUserRejection(err: unknown): boolean {
   return typeof cur === "string" && WALLET_REJECTION.test(cur);
 }
 
+export const QOREX_MAINNET_TITLE = "QoreX is on mainnet";
+export const QOREX_MAINNET_TEXT =
+  "Switch QoreX to testnet: unlock it, tap the version number at the bottom 7 times, then choose Switch to testnet (diana). Then try again.";
+const WRONG_NETWORK = /does not match the active network|qorechain-vladi|^QoreX is on mainnet/i;
+
+/** True when QoreX refused because its active network (mainnet) is not the testnet this app uses. */
+export function isQorexWrongNetwork(err: unknown): boolean {
+  return WRONG_NETWORK.test(errorMessage(err));
+}
+
+/** Toast for a QoreX failure: a warning with the switch steps for the wrong network, otherwise `fallback`. */
+export function qorexFailureToast(err: unknown, fallback: { title: string; text?: string }) {
+  if (isQorexWrongNetwork(err)) return { kind: "warning" as const, title: QOREX_MAINNET_TITLE, text: QOREX_MAINNET_TEXT };
+  return { kind: "error" as const, title: fallback.title, text: fallback.text ?? errorMessage(err) };
+}
+
 export const CANCELLED_MESSAGE = "You cancelled the request in your wallet.";
 
 /** Message of an Error, or `fallback` (default: the stringified value). */

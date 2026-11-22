@@ -5,6 +5,7 @@ import { useAccount } from "wagmi";
 import WalletRoot from "./WalletRoot";
 import { useTxAction } from "../hooks/useTxAction";
 import { useToast } from "../components/Toasts";
+import { qorexFailureToast } from "../chain/errors";
 import { TxStatusPanel } from "./TxWidgets";
 import { PHASE } from "../chain/verdict";
 import { sameAddress } from "../chain/address";
@@ -72,7 +73,7 @@ function ReviewPanelBody({ id, bounty, meta }: { id: bigint; bounty: Bounty; met
         <SignCard myVerifierIndex={myVerifierIndex}
           usesQorex={!preferLocal && qorex.canSignArbitrary} checkFirst={!preferLocal && qorex.canSignArbitrary && !qorex.qorAddress}
           signing={signing.signing} error={signing.error} signedIndex={signing.signedIndex}
-          onSign={() => (!preferLocal && qorex.canSignArbitrary && !qorex.qorAddress ? void qorex.connectAccount().catch(() => undefined) : void signing.sign())} />
+          onSign={() => (!preferLocal && qorex.canSignArbitrary && !qorex.qorAddress ? void qorex.connectAccount().catch((e) => toast(qorexFailureToast(e, { title: "Couldn't reach QoreX" }))) : void signing.sign())} />
       )}
       {builder.built && (
         <BundleCard bounty={bounty} disputed={disputed} bundleView={bundle} onSubmit={submit}

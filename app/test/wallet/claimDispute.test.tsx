@@ -156,6 +156,13 @@ describe("ClaimPanel flow", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/failed local ML-DSA-87 verification/);
   });
 
+  it("warns next to the claim line that a key-less account names the wrong claimant", () => {
+    m.myKeyLive = false;
+    render(<ClaimPanel id={7n} bounty={open} meta={META} />);
+    expect(screen.getByText(/will name the wrong claimant/)).toBeInTheDocument();
+    expect(screen.getAllByText("How to fix").length).toBeGreaterThan(0);
+  });
+
   it("warns and blocks signing when the account has no live PQ key", async () => {
     m.comments = [claimComment(11, 7n)];
     m.myKeyLive = false;

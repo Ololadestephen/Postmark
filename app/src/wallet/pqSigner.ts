@@ -7,7 +7,7 @@ import { signClaim as localSignClaim, signVerdict as localSignVerdict,
 import { bytesToHex, hexToBytes, type Hex } from "viem";
 import { prefersLocalSigner } from "./signerPreference";
 import type { VerdictFields } from "../formats/messages";
-import type { QorexState } from "./qorex";
+import { assertQorexTestnet, type QorexState } from "./qorex";
 
 export interface ClaimSignRequest {
   bountyId: bigint;
@@ -67,6 +67,7 @@ export function decodePqSignature(sig: string): `0x${string}` {
 
 async function qorexSign(native: QorexNativeProvider, qor1: string, message: `0x${string}`) {
   const data = stripMessagePrefix(message);
+  await assertQorexTestnet();
   await native.enable(NATIVE_CHAIN_ID);
   const res = await native.signArbitrary(NATIVE_CHAIN_ID, qor1, data) as unknown as
     { pq?: { signature?: string } };

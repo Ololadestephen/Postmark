@@ -10,9 +10,11 @@ import { VERIFIER_REGISTRY } from "../chain/config";
 import { FAUCET_URL } from "../data/links";
 import { VERIFIERS } from "../data/verifiers";
 import { fetchSelfListed, usePqcStatus } from "../hooks/queries";
-import { useQorex } from "../wallet/qorex";
+import { useQorex, useQorexNetwork } from "../wallet/qorex";
+import { QOREX_MAINNET_TEXT } from "../chain/errors";
 import { formatListingComment, isGithubLogin, listingMessage, type ListingProblem } from "../formats/verifierListing";
 import { getAllComments } from "../github/client";
+import { qorexFailureToast } from "../chain/errors";
 
 const btn = "rounded-lg border border-ink/20 bg-white px-3 py-1.5 text-sm font-medium hover:bg-ink/5 disabled:opacity-50";
 const primary = "rounded-lg bg-deep px-4 py-2 text-sm font-medium text-paper hover:brightness-110 disabled:opacity-50";
@@ -45,6 +47,7 @@ export default function VerifierJoin() {
   const toast = useToast();
   const qc = useQueryClient();
   const address = tryQorToEvm(qorex.qorAddress) as `0x${string}` | null;
+  const qorexNet = useQorexNetwork(!!address);
   const status = usePqcStatus(address ?? undefined);
   const [login, setLogin] = useState("");
   const [comment, setComment] = useState("");
@@ -54,8 +57,7 @@ export default function VerifierJoin() {
   const keyLive = status.data?.live === true;
   const curated = address ? VERIFIERS.some((v) => v.address.toLowerCase() === address.toLowerCase()) : false;
 
-  const fail = (title: string, e: unknown) =>
-    toast({ kind: "error", title, text: e instanceof Error ? e.message : String(e) });
+  const fail = (title: string, e: unknown) => toast(qorexFailureToast(e, { title }));
 
   const connect = async () => {
     setBusy("connect");
@@ -135,6 +137,9 @@ export default function VerifierJoin() {
             )}
           </Step>
           <Step n={2} title="Check your post-quantum key">
+            {qorexNet === "mainnet" && (
+              <p role="alert" className="mb-2 rounded-lg bg-mustard/40 p-2 text-ink"><strong>QoreX is on mainnet.</strong> {QOREX_MAINNET_TEXT}</p>
+            )}
             {!address ? <p className="text-gray">Connect QoreX first.</p>
               : status.isPending ? <p className="text-gray">Checking…</p>
               : keyLive ? <p>Your key is live.</p>

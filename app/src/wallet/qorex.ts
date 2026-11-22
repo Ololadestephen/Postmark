@@ -3,8 +3,9 @@ import {
   isQorexInstalled, type QorexEip1193Provider, type QorexNativeProvider,
   type QorexAccountSummary,
 } from "@qorechain/qorex-types";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { NATIVE_CHAIN_ID } from "../chain/config";
+import { QOREX_MAINNET_TEXT } from "../chain/errors";
 
 export interface QorexState {
   installed: boolean;
@@ -41,10 +42,33 @@ async function readAccounts(native: QorexNativeProvider) {
   return { accounts: r.accounts, qorAddress: r.accounts[r.activeIndex]?.address ?? null };
 }
 
+export type QorexNetwork = "testnet" | "mainnet" | "unknown";
+
+/** QoreX's active network, read without a prompt (eth_chainId answers even while locked). */
+export async function qorexNetwork(): Promise<QorexNetwork> {
+  try {
+    const evm = (globalThis as { window?: { qorex?: { evm?: { request: (a: { method: string }) => Promise<unknown> } } } })
+      .window?.qorex?.evm;
+    if (!evm) return "unknown";
+    const id = await evm.request({ method: "eth_chainId" });
+    return id === "0x2648" ? "testnet" : id === "0x2649" ? "mainnet" : "unknown";
+  } catch { return "unknown"; }
+}
+
+export class QorexWrongNetworkError extends Error {
+  constructor() { super(`QoreX is on mainnet. ${QOREX_MAINNET_TEXT}`); this.name = "QorexWrongNetworkError"; }
+}
+
+/** Call from a click handler right before a QoreX prompt: stops early when QoreX is on mainnet. */
+export async function assertQorexTestnet(): Promise<void> {
+  if (await qorexNetwork() === "mainnet") throw new QorexWrongNetworkError();
+}
+
 /** The user clicked something that needs the QoreX account: this is the only place that may prompt. */
 async function connectAccount(): Promise<void> {
   const native = data.native;
   if (!native) throw new Error("QoreX is not installed.");
+  await assertQorexTestnet();
   try {
     await native.enable(NATIVE_CHAIN_ID);
     const acct = await readAccounts(native);
@@ -81,6 +105,13 @@ export const getQorexSnapshot = (): QorexState => snapshot;
 
 /** Test hook: forget the probe so the next mount starts again. */
 export function resetQorexProbe() { started = false; data = IDLE_DATA; snapshot = { ...IDLE_DATA, connectAccount }; }
+
+/** QoreX's network once it is linked (never before: no probing on page load). */
+export function useQorexNetwork(linked: boolean): QorexNetwork | undefined {
+  const [net, setNet] = useState<QorexNetwork>();
+  useEffect(() => { if (linked) void qorexNetwork().then(setNet); else setNet(undefined); }, [linked]);
+  return net;
+}
 
 export function useQorex(): QorexState {
   useEffect(() => { void start(); }, []);

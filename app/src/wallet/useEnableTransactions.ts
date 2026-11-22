@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../components/Toasts";
-import { errorMessage, isUserRejection, CANCELLED_MESSAGE } from "../chain/errors";
+import { errorMessage, isUserRejection, qorexFailureToast, CANCELLED_MESSAGE } from "../chain/errors";
 import { getQorexSnapshot, useQorex } from "./qorex";
 import { canEnableTransactions, enableTransactions } from "./enableTransactions";
 
@@ -20,7 +20,7 @@ export function useEnableTransactions() {
       catch (e) {
         toast(isUserRejection(e)
           ? { kind: "info", title: "Cancelled", text: CANCELLED_MESSAGE }
-          : { kind: "error", title: "Couldn't reach QoreX", text: errorMessage(e) });
+          : qorexFailureToast(e, { title: "Couldn't reach QoreX" }));
         return;
       }
     }
@@ -40,7 +40,7 @@ export function useEnableTransactions() {
     } catch (e) {
       toast(isUserRejection(e)
         ? { kind: "info", title: "Cancelled", text: CANCELLED_MESSAGE }
-        : { kind: "error", title: "Couldn't enable transactions", text: `${errorMessage(e)} Follow the steps on the Get started page.` });
+        : qorexFailureToast(e, { title: "Couldn't enable transactions", text: `${errorMessage(e)} Follow the steps on the Get started page.` }));
     } finally { setBusy(false); }
   }, [busy, qorex.native, qorex.qorAddress, toast, qc]);
 

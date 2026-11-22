@@ -2,6 +2,7 @@ import { Card, SectionLabel } from "../../components/ui";
 import { REFUND_REASONS } from "../../formats/hashes";
 import { AdvancedSigner } from "../AdvancedSigner";
 import type { BuiltVerdict } from "../../chain/verdict";
+import { AccountFix } from "../AccountFix";
 import { ACCENT_BTN, Alert, GHOST_BTN, SOLID_BTN, TEXT_INPUT } from "./reviewUi";
 
 export function DecisionCard({ disputed, canPay, canResolve, scanDone, builder, built }: {
@@ -63,7 +64,7 @@ export function SignCard({ myVerifierIndex, usesQorex, checkFirst = false, misma
       {myVerifierIndex >= 0 && (
         <p className="mt-2 text-xs text-gray">You are verifier #{myVerifierIndex}.</p>
       )}
-      {mismatch && <Alert>{mismatch}</Alert>}
+      {mismatch && <><Alert>{mismatch}</Alert><AccountFix /></>}
       <AdvancedSigner showPort>
         <p>The signer's address must be one of this bounty's verifiers.</p>
       </AdvancedSigner>

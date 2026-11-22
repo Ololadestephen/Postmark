@@ -9,8 +9,11 @@ import { preflightTx } from "../chain/preflight";
 import type { EvmWindow } from "../chain/window";
 import { useEvmWindow, usePqcStatus } from "../hooks/queries";
 import { Card, SectionLabel } from "../components/ui";
-import { useQorex } from "./qorex";
+import { useQorex, useQorexNetwork } from "./qorex";
+import { useToast } from "../components/Toasts";
+import { QOREX_MAINNET_TEXT, qorexFailureToast } from "../chain/errors";
 import { accountMismatchMessage } from "./signerPreference";
+import { AccountFix } from "./AccountFix";
 
 import { FAUCET_URL } from "../data/links";
 export { FAUCET_URL };
@@ -19,7 +22,7 @@ export type RowStatus = "ok" | "todo" | "wait";
 export type RowAction =
   | { kind: "connect" } | { kind: "switch" } | { kind: "enable" } | { kind: "checkQorex" }
   | { kind: "link"; href: string; label: string };
-export interface ReadinessRow { id: string; label: string; status: RowStatus; hint?: string | undefined; action?: RowAction }
+export interface ReadinessRow { id: string; label: string; status: RowStatus; hint?: string | undefined; action?: RowAction; help?: "accounts" }
 
 export interface ReadinessInput {
   connected: boolean;
@@ -31,6 +34,8 @@ export interface ReadinessInput {
   window: EvmWindow | undefined;
   neededWei: bigint;
   balanceWei: bigint | undefined;
+  /** QoreX's active network, read after the account is linked */
+  qorexNetwork?: "testnet" | "mainnet" | "unknown" | undefined;
 }
 
 const FEE_MARGIN_WEI = 10n ** 16n; // 0.01 QOR for gas
@@ -48,9 +53,14 @@ export function readinessRows(i: ReadinessInput): ReadinessRow[] {
   rows.push(!i.qorexInstalled
     ? { id: "qorex", label: "Same account as QoreX", status: "todo", hint: "Install QoreX to sign with your post-quantum key.",
         action: { kind: "link", href: QOREX_DOWNLOAD_URLS.chrome, label: "Get QoreX" } }
-    : mismatch ? { id: "qorex", label: "Same account as QoreX", status: "todo", hint: mismatch }
+    : mismatch ? { id: "qorex", label: "Same account as QoreX", status: "todo", hint: mismatch, help: "accounts" }
     : !i.qorAddress ? { id: "qorex", label: "Same account as QoreX", status: "todo", hint: "QoreX hasn't been asked yet.", action: { kind: "checkQorex" } }
     : { id: "qorex", label: "Same account as QoreX", status: "ok" });
+  if (i.qorAddress && i.qorexNetwork && i.qorexNetwork !== "unknown") {
+    rows.push(i.qorexNetwork === "testnet"
+      ? { id: "qorexNet", label: "QoreX on testnet", status: "ok" }
+      : { id: "qorexNet", label: "QoreX on testnet", status: "todo", hint: QOREX_MAINNET_TEXT });
+  }
   rows.push(i.pqcLive === true ? { id: "pqc", label: "Post-quantum key registered", status: "ok" }
     : i.pqcLive === false ? { id: "pqc", label: "Post-quantum key registered", status: "todo",
         hint: "Make one send in QoreX to register it.", action: { kind: "link", href: "/start", label: "How" } }
@@ -86,6 +96,8 @@ export function ReadinessChecklist({ neededWei, onEnable, title = "Before you fu
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
   const qorex = useQorex();
+  const toast = useToast();
+  const qorexNet = useQorexNetwork(!!qorex.qorAddress);
   const pqc = usePqcStatus(address);
   const win = useEvmWindow(address ? evmToQor(address) : undefined);
   const balance = useQuery({
@@ -94,13 +106,13 @@ export function ReadinessChecklist({ neededWei, onEnable, title = "Before you fu
   });
   const rows = readinessRows({
     connected: isConnected, chainId: isConnected ? chainId : undefined,
-    qorexInstalled: qorex.installed, qorAddress: qorex.qorAddress, account: address,
+    qorexInstalled: qorex.installed, qorAddress: qorex.qorAddress, account: address, qorexNetwork: qorexNet,
     pqcLive: isConnected ? pqc.data?.live : undefined, window: win.data, neededWei, balanceWei: balance.data,
   });
   const run = (a: RowAction) => {
     if (a.kind === "connect") document.querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]')?.click();
     else if (a.kind === "switch") switchChain({ chainId: 9800 });
-    else if (a.kind === "checkQorex") void qorex.connectAccount().catch(() => undefined);
+    else if (a.kind === "checkQorex") void qorex.connectAccount().catch((e) => toast(qorexFailureToast(e, { title: "Couldn't reach QoreX" })));
     else if (a.kind === "enable") onEnable?.(neededWei);
   };
   const btn = "shrink-0 rounded-md border border-ink/20 bg-white px-2.5 py-1 text-xs font-medium hover:bg-ink/5";
@@ -114,6 +126,7 @@ export function ReadinessChecklist({ neededWei, onEnable, title = "Before you fu
           <div className="min-w-0 grow">
             <p className="text-sm font-medium leading-tight">{r.label} <span className="sr-only">— {STATUS_TEXT[r.status]}</span></p>
             {r.status === "todo" && r.hint && <p className="mt-0.5 text-xs text-charcoal">{r.hint}</p>}
+            {r.status === "todo" && r.help === "accounts" && <AccountFix />}
           </div>
           {r.status === "todo" && r.action && (
             r.action.kind === "link"

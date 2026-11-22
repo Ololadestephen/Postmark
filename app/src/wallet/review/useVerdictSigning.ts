@@ -8,7 +8,7 @@ import { useQorex } from "../qorex";
 import { pqcKeyStatus } from "../../chain/pqc";
 import { evmToQor } from "../../chain/bech32";
 import { sameAddress } from "../../chain/address";
-import { errorMessage } from "../../chain/errors";
+import { errorMessage, qorexFailureToast } from "../../chain/errors";
 import type { Bounty } from "../../chain/client";
 import type { BuiltVerdict } from "../../chain/verdict";
 
@@ -53,7 +53,7 @@ export function useVerdictSigning(
       onSigned(index, signature);
     } catch (e) {
       setError(errorMessage(e));
-      toast({ kind: "error", title: "Signing didn't work", text: errorMessage(e) });
+      toast(qorexFailureToast(e, { title: "Signing didn't work" }));
     } finally { setSigning(false); }
   };
 

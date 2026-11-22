@@ -122,6 +122,19 @@ describe("PQ signers", () => {
     expect(Array.from(data as Uint8Array)).toEqual([1, 2, 3, 4]);
   });
 
+  it("stops before any QoreX prompt when QoreX is on mainnet", async () => {
+    (window as unknown as { qorex?: unknown }).qorex = { evm: { request: vi.fn().mockResolvedValue("0x2649") } };
+    const signArbitrary = vi.fn();
+    const enable = vi.fn();
+    const signer = qorexSigner({ signArbitrary, enable } as never, "qor1x");
+    const message = bytesToHex(new TextEncoder().encode("qorechain-msg-v1|qorechain-diana|x"));
+    const req = { bountyId: 1n, identityHash: `0x${"11".repeat(32)}` as const, claimRound: 1n, message };
+    await expect(signer.sign(req)).rejects.toThrow(/QoreX is on mainnet/);
+    expect(enable).not.toHaveBeenCalled();
+    expect(signArbitrary).not.toHaveBeenCalled();
+    delete (window as unknown as { qorex?: unknown }).qorex;
+  });
+
   it("refuses a message without the exact prefix before calling QoreX", async () => {
     const signArbitrary = vi.fn();
     const enable = vi.fn();

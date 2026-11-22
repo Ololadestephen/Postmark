@@ -23,8 +23,9 @@ import { usePqcStatus } from "../hooks/queries";
 import { Card, SectionLabel, shortAddr } from "../components/ui";
 import { ESCROW_ADDRESS } from "../chain/config";
 import { sameAddress } from "../chain/address";
-import { errorMessage } from "../chain/errors";
+import { errorMessage, qorexFailureToast } from "../chain/errors";
 import { nowSec } from "../chain/time";
+import { AccountFix } from "./AccountFix";
 import type { Bounty } from "../chain/client";
 import type { BountyMeta } from "../chain/indexer";
 
@@ -128,7 +129,7 @@ function ClaimPanelBody({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta
       setStep("send");
     } catch (e) {
       setSignError(errorMessage(e));
-      toast({ kind: "error", title: "Signing didn't work", text: errorMessage(e) });
+      toast(qorexFailureToast(e, { title: "Signing didn't work" }));
     } finally { setSigning(false); }
   };
 
@@ -182,6 +183,12 @@ function ClaimPanelBody({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta
             </a>{" "}
             <span className="text-gray">({githubItemLabel(meta)})</span>
           </p>
+          {myKey.data && !myKey.data.live && (
+            <div role="alert" className="mt-2 rounded-lg bg-mustard/40 p-2 text-sm text-ink">
+              <p>This account has no live post-quantum key, so a claim line posted from it will name the wrong claimant. Fix the accounts first, then copy a fresh claim line.</p>
+              <AccountFix />
+            </div>
+          )}
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-stretch">
             <code className="w-full grow break-all rounded-lg border border-ink/10 bg-paper p-3 font-mono text-xs text-ink">{line}</code>
             <button type="button"
@@ -228,11 +235,11 @@ function ClaimPanelBody({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta
                 </p>
               )}
               {qoreXSigns && <p className="mt-2 text-xs text-gray">QoreX will sign as {qorex.qorAddress}.</p>}
-              {mismatch && <p role="alert" className="mt-2 text-sm text-orange">{mismatch}</p>}
+              {mismatch && <div role="alert" className="mt-2 text-sm text-orange"><p>{mismatch}</p><AccountFix /></div>}
             </>
           )}
           {!signature && (
-            <button type="button" onClick={() => (needsQorexCheck ? void qorex.connectAccount().catch(() => undefined) : void sign())}
+            <button type="button" onClick={() => (needsQorexCheck ? void qorex.connectAccount().catch((e) => toast(qorexFailureToast(e, { title: "Couldn't reach QoreX" }))) : void sign())}
               disabled={!claim || step !== "signature" || signing || !!mismatch || (myKey.data !== undefined && !myKey.data.live)}
               className={`mt-3 ${btn}`}>
               {signLabel}
