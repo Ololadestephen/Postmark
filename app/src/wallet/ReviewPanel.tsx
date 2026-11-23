@@ -91,7 +91,7 @@ function ReviewTool({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta: Bo
             toast({ kind: "success", title: "Copied", text: "Verdict comment copied — post it on the GitHub issue or PR." });
           }}
           onCopy={() => { void navigator.clipboard.writeText(bundle.bundleJson); toast({ kind: "success", title: "Copied", text: "Bundle copied." }); }}>
-          <TxStatusPanel state={tx.state} />
+          <TxStatusPanel state={tx.state} onRetry={tx.retry} />
         </BundleCard>
       )}
     </div>

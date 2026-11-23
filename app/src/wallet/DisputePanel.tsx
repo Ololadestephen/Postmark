@@ -99,7 +99,7 @@ function DisputePanelBody({ id, bounty, meta }: { id: bigint; bounty: Bounty; me
           </button>
         </div>
       )}
-      <TxStatusPanel state={tx.state} />
+      <TxStatusPanel state={tx.state} onRetry={tx.retry} />
     </Card>
   );
 }

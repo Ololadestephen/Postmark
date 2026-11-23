@@ -1,8 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 
 /** How to open an EVM access window in QoreX; one shared copy for every place a window is needed. */
-export function WindowSteps({ qorAddress, capQor, sendsValue = false }: {
+export function WindowSteps({ qorAddress, capQor, sendsValue = false, onRetry }: {
   qorAddress?: string | null | undefined; capQor?: string | undefined; sendsValue?: boolean;
+  onRetry?: (() => void) | undefined;
 }) {
   const qc = useQueryClient();
   return (
@@ -15,9 +16,9 @@ export function WindowSteps({ qorAddress, capQor, sendsValue = false }: {
       </ol>
       <p className="mt-2 text-gray">The cap counts each transaction's maximum fee, not only the QOR it sends.
         {sendsValue && " It must cover the amount you send plus fees."} Open the window before clicking the action; opening it advances the account nonce.</p>
-      <button type="button" onClick={() => void qc.invalidateQueries({ queryKey: ["evmWindow"] })}
+      <button type="button" onClick={() => { void qc.invalidateQueries({ queryKey: ["evmWindow"] }); onRetry?.(); }}
         className="mt-2 rounded-md border border-ink/20 bg-white px-2.5 py-1 text-xs font-medium hover:bg-ink/5">
-        I opened it — check again
+        {onRetry ? "I opened it — try again" : "I opened it — check again"}
       </button>
     </div>
   );

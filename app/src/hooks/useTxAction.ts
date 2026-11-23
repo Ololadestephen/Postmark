@@ -77,6 +77,7 @@ export function useTxAction() {
   const qc = useQueryClient();
   const [state, setState] = useState<TxState>({ phase: "idle" });
   const running = useRef(false);
+  const lastReq = useRef<TxRequest | undefined>(undefined);
   const toast = useToast();
   const fail = (error: string, extra: Partial<TxState> = {}) => {
     setState({ phase: "failed", error, ...extra });
@@ -88,6 +89,7 @@ export function useTxAction() {
   const run = useCallback(async (req: TxRequest) => {
     if (running.current) return;
     running.current = true;
+    lastReq.current = req;
     try {
       setState({ phase: "checking" });
       if (!isConnected || !address) {
@@ -178,5 +180,7 @@ export function useTxAction() {
   }, [address, isConnected, chainId, switchChainAsync, writeContractAsync,
       walletClient, qc, toast]);
 
-  return { state, run, reset, busy: BUSY_PHASES.includes(state.phase) };
+  const retry = useCallback(() => { if (lastReq.current) void run(lastReq.current); }, [run]);
+
+  return { state, run, retry, reset, busy: BUSY_PHASES.includes(state.phase) };
 }

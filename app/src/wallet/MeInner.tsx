@@ -69,7 +69,7 @@ function Credits() {
           {pqc.data && !pqc.data.live && " Yours is not registered — withdrawals will revert."}
         </p>
       )}
-      <TxStatusPanel state={tx.state} />
+      <TxStatusPanel state={tx.state} onRetry={tx.retry} />
     </section>
   );
 }

@@ -14,25 +14,25 @@ function MaxFee({ state }: { state: TxState }) {
   );
 }
 
-export function WindowGuide({ guide }: { guide: NonNullable<TxState["guide"]> }) {
+export function WindowGuide({ guide, onRetry }: { guide: NonNullable<TxState["guide"]>; onRetry?: (() => void) | undefined }) {
   const qorex = useQorex();
   const capQor = (Math.ceil(Number(guide.suggestedValueUqor) / 10_000) / 100).toString();
   return (
     <div className="mt-3 rounded-lg border border-orange/40 bg-orange/10 p-4 text-left text-sm">
       <p className="font-medium text-orange">Open an EVM access window in QoreX:</p>
-      <WindowSteps qorAddress={qorex.qorAddress} capQor={capQor} sendsValue />
+      <WindowSteps qorAddress={qorex.qorAddress} capQor={capQor} sendsValue onRetry={onRetry} />
     </div>
   );
 }
 
-export function TxStatusPanel({ state }: { state: TxState }) {
+export function TxStatusPanel({ state, onRetry }: { state: TxState; onRetry?: (() => void) | undefined }) {
   if (state.phase === "idle") return null;
   return (
     <div className="mt-6 rounded-xl border border-ink/10 bg-white/70 p-4 text-sm" role="status">
       {state.phase === "blocked" && (
         <>
           <p className="text-orange">{state.blockReason}</p>
-          {state.guide && <WindowGuide guide={state.guide} />}
+          {state.guide && <WindowGuide guide={state.guide} onRetry={onRetry} />}
         </>
       )}
       {state.phase === "checking" && <p className="text-gray">Checking chain, key and window…</p>}

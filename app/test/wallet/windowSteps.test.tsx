@@ -17,6 +17,15 @@ describe("WindowSteps", () => {
     fireEvent.click(screen.getByRole("button", { name: "I opened it — check again" }));
     expect(spy).toHaveBeenCalledWith({ queryKey: ["evmWindow"] });
   });
+  it("retries the blocked action when given onRetry", () => {
+    const qc = new QueryClient();
+    const spy = vi.spyOn(qc, "invalidateQueries");
+    const onRetry = vi.fn();
+    render(<QueryClientProvider client={qc}><WindowSteps qorAddress="qor1abc" onRetry={onRetry} /></QueryClientProvider>);
+    fireEvent.click(screen.getByRole("button", { name: "I opened it — try again" }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["evmWindow"] });
+  });
   it("maps QoreX's refusal to open a window to a warning", () => {
     const t = qorexFailureToast(new Error("QoreX: /qorechain.pqc.v1.MsgOpenEVMWindow is managed by the wallet itself, not by a website"), { title: "x" });
     expect(t).toMatchObject({ kind: "warning", title: "Open the window in QoreX" });

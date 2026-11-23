@@ -336,7 +336,7 @@ function CreateForm() {
                 </dd>
               </div>
             </dl>
-            <TxStatusPanel state={tx.state} />
+            <TxStatusPanel state={tx.state} onRetry={tx.retry} />
             {!isConnected ? (
               <p className="mt-4 text-sm text-charcoal">Connect an EVM wallet to continue.</p>
             ) : (

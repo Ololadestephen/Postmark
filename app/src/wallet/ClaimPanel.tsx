@@ -266,7 +266,7 @@ function ClaimPanelBody({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta
           {signError && <p role="alert" className="mt-2 text-sm text-orange">{signError}</p>}
         </li>
       </ol>
-      <TxStatusPanel state={tx.state} />
+      <TxStatusPanel state={tx.state} onRetry={tx.retry} />
       <AdvancedSigner />
     </Card>
     </div>

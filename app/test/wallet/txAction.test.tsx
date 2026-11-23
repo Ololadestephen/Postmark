@@ -83,6 +83,17 @@ describe("useTxAction", () => {
     expect(m.writeContractAsync).not.toHaveBeenCalled();
   });
 
+  it("retries the last request after the window is opened", async () => {
+    m.preflight.mockReturnValueOnce({ ok: false, reason: "No open EVM window.", guide: { target: "0x1", suggestedTxs: 1, suggestedValueUqor: "1" } });
+    const { result } = renderHook(() => useTxAction(), { wrapper });
+    await act(() => result.current.run(req));
+    expect(result.current.state.phase).toBe("blocked");
+    await act(async () => { result.current.retry(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(result.current.state).toMatchObject({ phase: "confirmed", hash: HASH });
+    expect(m.writeContractAsync).toHaveBeenCalledTimes(1);
+    expect(m.writeContractAsync.mock.calls[0]![0]).toMatchObject({ functionName: "finalize", args: [7n] });
+  });
+
   it("decodes the revert when gas estimation fails and the simulation reverts", async () => {
     m.estimate.mockRejectedValue(new Error("estimate failed"));
     m.simulate.mockRejectedValue(new Error("execution reverted"));

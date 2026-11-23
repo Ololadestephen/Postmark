@@ -59,7 +59,7 @@ function ActionsInner({ id, bounty, connected }: { id: bigint; bounty: Bounty; c
           run={() => void tx.run({ functionName: "reopen", args: [id], onConfirmed: done })} />}
       </div>
       {finalize && <NativeSend call={{ functionName: "finalize", args: [id] }} label="Finalize with QoreX" onConfirmed={done} disabled={busy} />}
-      <TxPanel state={tx.state} />
+      <TxPanel state={tx.state} onRetry={tx.retry} />
     </Card>
   );
 }
