@@ -2,12 +2,19 @@
 // and never guesses: any GitHub failure, ambiguity or missing evidence is an abstention.
 import { zeroAddress, type Address, type Hex } from "viem";
 import type { Bounty } from "../../app/src/chain/client";
-import { findClaimComments, findDisputeComments, type GhComment } from "../../app/src/github/comments";
+import {
+  findClaimComments, findDisputeComments, findProofComments, type ClaimComment, type GhComment,
+} from "../../app/src/github/comments";
 import { checkPull, closesIssue, mergedAtSeconds } from "../../app/src/github/prcheck";
 import { githubItemUrl } from "../../app/src/github/parse";
+import { briefHashOf, parseTaskBlock, type Task } from "../../app/src/github/task";
+import {
+  checkOnchainProof, claimedAtFor, proofCheckPassed, type OnchainReader,
+} from "../../app/src/chain/onchainCheck";
 import type { GhPull } from "../../app/src/github/client";
 import {
-  disputeEvidenceHashOf, identityHashOf, payEvidenceHashOf, refundEvidenceHashOf, resolutionEvidenceHashOf,
+  disputeEvidenceHashOf, identityHashOf, onchainEvidenceHashOf, payEvidenceHashOf,
+  refundEvidenceHashOf, resolutionEvidenceHashOf,
 } from "../../app/src/formats/hashes";
 import type { GhApi } from "./github";
 
@@ -19,12 +26,19 @@ export interface WorkMeta { ownerRepo: string; kind: number; number: number }
 
 export interface DecideInput {
   id: bigint;
-  bounty: Pick<Bounty, "state" | "payee" | "payeeIdentityHash" | "deadline" | "disputeEvidenceHash">;
+  bounty: Pick<Bounty, "state" | "payee" | "payeeIdentityHash" | "deadline" | "disputeEvidenceHash"
+    | "claimExpiresAt" | "claimTimeout" | "claimRound">;
   meta: WorkMeta;
   escrow: Address;
   /** chain time, seconds */
   now: bigint;
   gh: GhApi;
+  /** diana reads for on-chain task proofs; only needed for task bounties */
+  reader?: OnchainReader;
+  /** initialEvidenceHash of every other bounty on the escrow (proof reuse guard) */
+  takenEvidence?: Hex[];
+  /** Claimed events for this bounty (claim time when claimExpiresAt is cleared, e.g. Disputed) */
+  claimEvents?: { claimRound: bigint; blockNumber: bigint }[];
 }
 
 export type Decision =
@@ -87,7 +101,7 @@ async function decideInner(i: DecideInput): Promise<Decision> {
     disputeCommentId = BigInt(dc.commentId);
   }
 
-  const basis = await judge(i, claim.githubLogin);
+  const basis = await judge(i, claim, comments);
   if (basis.kind === "abstain") return basis;
   const phase = disputed ? PHASE_DISPUTE : PHASE_INITIAL;
   const evidenceHash = disputed ? resolutionEvidenceHashOf(disputeCommentId, basis.evidenceHash) : basis.evidenceHash;
@@ -96,15 +110,26 @@ async function decideInner(i: DecideInput): Promise<Decision> {
     : { kind: "refund", phase, reason: basis.reason!, detailsUrl: basis.detailsUrl!, evidenceHash, summary: basis.summary };
 }
 
-async function judge(i: DecideInput, login: string): Promise<Basis | Abstain> {
+async function judge(i: DecideInput, claim: ClaimComment, comments: GhComment[]): Promise<Basis | Abstain> {
   const { meta, bounty: b, now, gh } = i;
+  const login = claim.githubLogin;
   const candidates: { repo: string; number: number }[] = [];
   let issueState: { state: string; reason: string | null | undefined } | null = null;
   if (meta.kind === 1) {
     candidates.push({ repo: meta.ownerRepo, number: meta.number });
   } else {
-    const [issue, linked] = await Promise.all([gh.getIssue(meta.ownerRepo, meta.number), gh.linkedPrs(meta.ownerRepo, meta.number)]);
+    const issue = await gh.getIssue(meta.ownerRepo, meta.number);
     issueState = { state: issue.state, reason: issue.state_reason };
+    const parsed = parseTaskBlock(issue.body ?? null);
+    if (parsed && "error" in parsed) return abstain(`invalid task block: ${parsed.error}`);
+    if (parsed?.task) {
+      if (parsed.task.type === "testing" || parsed.task.type === "url") {
+        return abstain(`human-judged task type: ${parsed.task.type}`);
+      }
+      return judgeOnchain(i, claim, comments, parsed.task, issueState);
+    }
+    // no task block: an ordinary code bounty, judged by merged pull requests
+    const linked = await gh.linkedPrs(meta.ownerRepo, meta.number);
     for (const l of linked) {
       if (sameRepo(l.repo, meta.ownerRepo) && !candidates.some((c) => c.number === l.number)) candidates.push({ repo: meta.ownerRepo, number: l.number });
     }
@@ -152,4 +177,64 @@ async function judge(i: DecideInput, login: string): Promise<Basis | Abstain> {
     }
   }
   return abstain("no merged PR from the claimant yet");
+}
+
+/** On-chain task bounties: the claimant's own proof transaction is the work. */
+async function judgeOnchain(i: DecideInput, claim: ClaimComment, comments: GhComment[],
+  task: Task, issueState: { state: string; reason: string | null | undefined } | null,
+): Promise<Basis | Abstain> {
+  const { bounty: b, now, meta } = i;
+  if (!claim.brief) return abstain("the claim line has no brief hash");
+  if (claim.brief !== briefHashOf(task)) return abstain("the task brief changed after the claim");
+  if (!i.reader) return abstain("no chain reader configured");
+  let claimedAt: bigint | null;
+  try {
+    claimedAt = await claimedAtFor(b, i.claimEvents ?? [], i.reader);
+  } catch (e) {
+    return abstain(`chain read failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  if (claimedAt === null) return abstain("cannot tell when the claim was stamped");
+
+  const txHashes: Hex[] = [];
+  for (const p of findProofComments(comments)) {
+    if (p.githubLogin === claim.githubLogin && !txHashes.includes(p.txHash as Hex)) {
+      txHashes.push(p.txHash as Hex);
+    }
+  }
+
+  const passing: { txHash: Hex; at: bigint }[] = [];
+  for (const txHash of txHashes) {
+    let check;
+    try {
+      check = await checkOnchainProof(task, { txHash },
+        { claimant: b.payee, claimedAt, deadline: b.deadline, now }, i.reader);
+    } catch (e) {
+      return abstain(`chain read failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    if (proofCheckPassed(check) && check.blockTimestamp !== null) {
+      passing.push({ txHash, at: check.blockTimestamp });
+    }
+  }
+
+  if (passing.length === 0) {
+    if (issueState?.state === "closed" && issueState.reason === "not_planned") {
+      const detailsUrl = githubItemUrl(meta);
+      return {
+        kind: "refund", reason: "withdrawn", detailsUrl,
+        evidenceHash: refundEvidenceHashOf("withdrawn", detailsUrl),
+        summary: "issue closed as not planned",
+      };
+    }
+    return abstain("no passing proof transaction yet");
+  }
+  if (passing.length > 1) return abstain("several passing proof transactions");
+  const { txHash, at } = passing[0]!;
+  const evidenceHash = onchainEvidenceHashOf(task.type, txHash, at, b.payee);
+  if (i.takenEvidence?.some((h) => h.toLowerCase() === evidenceHash.toLowerCase())) {
+    return abstain("this proof was already used for another bounty");
+  }
+  return {
+    kind: "pay", payee: b.payee, mergedAt: at, evidenceHash,
+    summary: `proof tx ${txHash.slice(0, 12)}… (${task.type})`,
+  };
 }

@@ -8,13 +8,15 @@ import { verdictMessage } from "../../app/src/formats/messages";
 import { BUNDLE_FORMAT, type VerdictBundle } from "../../app/src/formats/verdictBundle";
 import { formatVerdictComment, parseVerdictComments, type ParsedVerdictComment } from "../../app/src/formats/verdictComment";
 import type { BotConfig } from "./config";
+import type { Bounty } from "../../app/src/chain/client";
 import { STATE, decide, PHASE_DISPUTE, PHASE_INITIAL, type Decision } from "./decide";
 import { selectQuorum, type OwnVerdict } from "./quorum";
 import type { GhApi } from "./github";
 import {
-  chainNow, chainVerdictMessage, gasLimitFor, loadWorkMeta, publicClient, readBounty, readNextId, simulate, walletFor,
+  chainNow, chainVerdictMessage, gasLimitFor, loadIndex, publicClient, readBounty, readNextId, simulate, walletFor,
   request, type Action,
 } from "./chain";
+import { chainReader, claimEventsOf } from "../../app/src/chain/onchainCheck";
 import { openWindow, txOptions } from "./window";
 import { mergeVerdictComments, postingTarget, readTargets } from "./boards";
 
@@ -42,16 +44,19 @@ export async function run(cfg: BotConfig, gh: GhApi, log: (line: string) => void
 
   const next = await readNextId(cfg.escrow);
   const now = await chainNow();
-  const mine = [];
+  const all: { id: bigint; bounty: Bounty }[] = [];
+  const mine: { id: bigint; bounty: Bounty }[] = [];
   for (let id = 1n; id < next; id++) {
     const bounty = await readBounty(cfg.escrow, id);
+    all.push({ id, bounty });
     if (bounty.verifiers.some((v) => v.toLowerCase() === me.toLowerCase())) mine.push({ id, bounty });
   }
   if (mine.length === 0) {
     log(`no bounties name ${me} as a verifier (checked ${next - 1n})`);
     return { exitCode: 0, rows: [] };
   }
-  const metaById = await loadWorkMeta(cfg.escrow, cfg.deployBlock);
+  const index = await loadIndex(cfg.escrow, cfg.deployBlock);
+  const metaById = index.metaById;
 
   const rows: Row[] = [];
   const actions: Action[] = [];
@@ -81,7 +86,11 @@ export async function run(cfg: BotConfig, gh: GhApi, log: (line: string) => void
       }
       const parsed = mergeVerdictComments(lists);
 
-      const decision: Decision = await decide({ id, bounty, meta, escrow: cfg.escrow, now, gh });
+      const decision: Decision = await decide({
+        id, bounty, meta, escrow: cfg.escrow, now, gh, reader: chainReader,
+        takenEvidence: all.filter((o) => o.id !== id).map((o) => o.bounty.initialEvidenceHash),
+        claimEvents: claimEventsOf(index.events, id),
+      });
       let own: OwnVerdict | null = null;
       if (decision.kind === "abstain") {
         row.decision = `abstain: ${decision.reason}`;

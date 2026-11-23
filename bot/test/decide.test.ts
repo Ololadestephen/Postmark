@@ -2,9 +2,14 @@ import { describe, it, expect } from "vitest";
 import { decide, type DecideInput } from "../src/decide";
 import {
   ESCROW, PAYEE, REPO, NOW, SHA, COMMENT_ID, GOOD_MERGED_AT, bountyFor, claimBody, comment, disputeComment,
-  disputeEvidenceHashOf, fakeGh, goodPull, pull, sec, type FakeGh,
+  disputeEvidenceHashOf, fakeGh, goodPull, proofBody, pull, sec, type FakeGh,
 } from "./fixtures";
-import { payEvidenceHashOf, refundEvidenceHashOf, resolutionEvidenceHashOf, identityHashOf } from "../../app/src/formats/hashes";
+import {
+  onchainEvidenceHashOf, payEvidenceHashOf, refundEvidenceHashOf, resolutionEvidenceHashOf, identityHashOf,
+} from "../../app/src/formats/hashes";
+import { briefHashOf, functionSelector, type Task } from "../../app/src/github/task";
+import type { OnchainReader } from "../../app/src/chain/onchainCheck";
+import type { Hex } from "viem";
 
 const run = (gh: FakeGh, over: Partial<DecideInput> = {}, meta = { ownerRepo: REPO, kind: 0, number: 7 }) =>
   decide({ id: 7n, bounty: bountyFor(), meta, escrow: ESCROW, now: NOW, gh: fakeGh(gh), ...over });
@@ -124,5 +129,134 @@ describe("decide: DISPUTE", () => {
     const comments = [comment(COMMENT_ID, "contributor", claimBody()), disputeComment(900, "disputer")];
     const d = await run({ ...base, comments }, { ...disputed(), now: 2_000_000_001n });
     expect(d.kind).toBe("pay");
+  });
+});
+
+describe("decide: on-chain task bounties", () => {
+  const TARGET = `0x${"ab".repeat(20)}` as Hex;
+  const DEPLOYED = `0x${"cd".repeat(20)}`;
+  const CODEHASH = `0x${"ee".repeat(32)}` as Hex;
+  const TX = `0x${"aa".repeat(32)}` as Hex;
+  const TX2 = `0x${"bb".repeat(32)}` as Hex;
+  const AT = NOW - 100n;
+  const CLAIMED_AT = NOW + 1000n - 86_400n; // claimExpiresAt − claimTimeout from bountyFor
+
+  const callTask: Task = { type: "onchain-call", contract: TARGET, function: "register(bytes)" };
+  const deployTask: Task = { type: "onchain-deploy", codehash: CODEHASH };
+  const block = (inner: string) => `\`\`\`postmark-task\n${inner}\n\`\`\``;
+  const taskIssue = (inner: string) => ({ body: `do the thing\n${block(inner)}\n` });
+
+  interface FakeChain {
+    tx?: { from: string; to: string | null; input: Hex; blockNumber: bigint } | null;
+    receipt?: { status: string; contractAddress: string | null; blockNumber: bigint } | null;
+    ts?: bigint; codeHash?: Hex | null; fail?: boolean;
+  }
+  const fakeReader = (f: FakeChain = {}): OnchainReader => {
+    const boom = () => { if (f.fail) throw new Error("rpc down"); };
+    return {
+      async getTransaction() {
+        boom();
+        return f.tx === undefined
+          ? { from: PAYEE, to: TARGET, input: `${functionSelector("register(bytes)")}${"00".repeat(32)}` as Hex, blockNumber: 9n }
+          : f.tx;
+      },
+      async getTransactionReceipt() {
+        boom();
+        return f.receipt === undefined ? { status: "success", contractAddress: null, blockNumber: 9n } : f.receipt;
+      },
+      async getBlockTimestamp() { boom(); return f.ts ?? AT; },
+      async getCodeHash() { boom(); return f.codeHash === undefined ? CODEHASH : f.codeHash; },
+    };
+  };
+
+  const taskRun = (gh: FakeGh, task: Task, chain: FakeChain = {}, over: Partial<DecideInput> = {}) =>
+    run({
+      issue: taskIssue(`type: ${task.type}${task.contract ? `\ncontract: ${task.contract}` : ""}${task.function ? `\nfunction: ${task.function}` : ""}${task.codehash ? `\ncodehash: ${task.codehash}` : ""}`),
+      comments: [
+        comment(COMMENT_ID, "contributor", claimBody(7, PAYEE, 9800, ESCROW, briefHashOf(task))),
+        comment(600, "contributor", proofBody(TX)),
+      ],
+      ...gh,
+    }, { reader: fakeReader(chain), ...over });
+
+  it("pays when the proof transaction calls the contract", async () => {
+    const d = await taskRun({}, callTask);
+    expect(d).toMatchObject({ kind: "pay", payee: PAYEE, mergedAt: AT });
+    if (d.kind === "pay") expect(d.evidenceHash).toBe(onchainEvidenceHashOf("onchain-call", TX, AT, PAYEE));
+  });
+  it("pays a deploy task when the codehash matches", async () => {
+    const d = await taskRun({}, deployTask, {
+      tx: { from: PAYEE, to: null, input: "0x6000", blockNumber: 9n },
+      receipt: { status: "success", contractAddress: DEPLOYED, blockNumber: 9n },
+    });
+    expect(d.kind).toBe("pay");
+    if (d.kind === "pay") expect(d.evidenceHash).toBe(onchainEvidenceHashOf("onchain-deploy", TX, AT, PAYEE));
+  });
+  it("pays on a re-read: the same proof passes identically", async () => {
+    const d = await taskRun({ comments: [
+      comment(COMMENT_ID, "contributor", claimBody(7, PAYEE, 9800, ESCROW, briefHashOf(callTask))),
+      comment(600, "contributor", `see below\n${proofBody(TX)}\n${proofBody(TX)}`),
+    ] }, callTask);
+    expect(d.kind).toBe("pay");
+  });
+  it("abstains when the claim line has no brief", async () => {
+    const d = await taskRun({ comments: [
+      comment(COMMENT_ID, "contributor", claimBody()),
+      comment(600, "contributor", proofBody(TX)),
+    ] }, callTask);
+    expect(reason(d)).toMatch(/no brief/);
+  });
+  it("abstains when the brief changed after the claim", async () => {
+    const other = briefHashOf({ type: "onchain-call", contract: `0x${"99".repeat(20)}` });
+    const d = await taskRun({ comments: [
+      comment(COMMENT_ID, "contributor", claimBody(7, PAYEE, 9800, ESCROW, other)),
+      comment(600, "contributor", proofBody(TX)),
+    ] }, callTask);
+    expect(reason(d)).toMatch(/brief changed/);
+  });
+  it("abstains when the proof comes from another GitHub login", async () => {
+    const d = await taskRun({ comments: [
+      comment(COMMENT_ID, "contributor", claimBody(7, PAYEE, 9800, ESCROW, briefHashOf(callTask))),
+      comment(600, "impostor", proofBody(TX)),
+    ] }, callTask);
+    expect(reason(d)).toMatch(/no passing proof/);
+  });
+  it("abstains when two proofs pass", async () => {
+    const d = await taskRun({ comments: [
+      comment(COMMENT_ID, "contributor", claimBody(7, PAYEE, 9800, ESCROW, briefHashOf(callTask))),
+      comment(600, "contributor", `${proofBody(TX)}\n${proofBody(TX2)}`),
+    ] }, callTask);
+    expect(reason(d)).toMatch(/several passing/);
+  });
+  it("abstains when the proof is already used by another bounty", async () => {
+    const d = await taskRun({}, callTask, {}, { takenEvidence: [onchainEvidenceHashOf("onchain-call", TX, AT, PAYEE)] });
+    expect(reason(d)).toMatch(/already used/);
+  });
+  it("abstains on an RPC failure", async () => {
+    const d = await taskRun({}, callTask, { fail: true });
+    expect(reason(d)).toMatch(/chain read failed/);
+  });
+  it("abstains when no transaction is found", async () => {
+    const d = await taskRun({}, callTask, { tx: null, receipt: null });
+    expect(reason(d)).toMatch(/no passing proof/);
+  });
+  it("abstains on a transaction before the claim or past the deadline", async () => {
+    expect(reason(await taskRun({}, callTask, { ts: CLAIMED_AT - 1n }))).toMatch(/no passing proof/);
+    expect(reason(await taskRun({}, callTask, { ts: 2_000_000_001n }))).toMatch(/no passing proof/);
+  });
+  it("abstains for a human-judged task type", async () => {
+    const d = await taskRun({}, { type: "testing" } as Task);
+    expect(reason(d)).toMatch(/human-judged task type: testing/);
+  });
+  it("abstains on an invalid task block", async () => {
+    const d = await run({ issue: { body: block("type: onchain-call\ncontract: 0xzz") } });
+    expect(reason(d)).toMatch(/invalid task block/);
+  });
+  it("still refunds a withdrawn task bounty", async () => {
+    const d = await run({
+      issue: { body: block("type: onchain-deploy"), state: "closed", state_reason: "not_planned" },
+      comments: [comment(COMMENT_ID, "contributor", claimBody(7, PAYEE, 9800, ESCROW, briefHashOf({ type: "onchain-deploy" })))],
+    }, { reader: fakeReader() });
+    expect(d).toMatchObject({ kind: "refund", reason: "withdrawn" });
   });
 });

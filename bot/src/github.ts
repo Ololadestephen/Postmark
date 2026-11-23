@@ -3,6 +3,7 @@ import type { GhPull } from "../../app/src/github/client";
 
 export interface BotIssue {
   number: number; state: string; state_reason?: string | null; html_url: string;
+  body?: string | null;
   user: { login: string }; pull_request?: unknown;
 }
 export interface LinkedPr { repo: string; number: number }

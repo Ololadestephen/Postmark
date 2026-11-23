@@ -13,8 +13,10 @@ export const SHA = "a".repeat(40);
 export const MERGED_AT = "2030-01-01T00:00:00Z";
 export const COMMENT_ID = 555;
 
-export const claimBody = (id = 7, claimant: string = PAYEE, chain = 9800, escrow: string = ESCROW) =>
-  `postmark-claim v1 chain=${chain} escrow=${escrow.toLowerCase()} bounty=${id} claimant=${claimant.toLowerCase()}`;
+export const claimBody = (id = 7, claimant: string = PAYEE, chain = 9800, escrow: string = ESCROW, brief?: string) =>
+  `postmark-claim v1 chain=${chain} escrow=${escrow.toLowerCase()} bounty=${id} claimant=${claimant.toLowerCase()}${brief ? ` brief=${brief}` : ""}`;
+
+export const proofBody = (txHash: string) => `postmark-proof v1 tx=${txHash}`;
 export const comment = (id: number, login: string, body: string): GhComment =>
   ({ id, user: { login }, body, created_at: "2026-01-01T00:00:00Z" });
 
@@ -31,6 +33,7 @@ export { sec };
 
 export const bountyFor = (over: Record<string, unknown> = {}) => ({
   state: 1, payee: PAYEE, deadline: DEADLINE,
+  claimExpiresAt: NOW + 1000n, claimTimeout: 86_400n, claimRound: 1n,
   payeeIdentityHash: identityHashOf("contributor", PAYEE, BigInt(COMMENT_ID)),
   disputeEvidenceHash: `0x${"0".repeat(64)}` as `0x${string}`, ...over,
 });

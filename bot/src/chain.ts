@@ -33,10 +33,9 @@ export async function getLogsChunked(escrow: Address, from: bigint, to: bigint) 
   return out;
 }
 
-export async function loadWorkMeta(escrow: Address, deployBlock: bigint) {
+export async function loadIndex(escrow: Address, deployBlock: bigint) {
   const head = await publicClient.getBlockNumber();
-  const state = indexEvents(decodeLogs(await getLogsChunked(escrow, deployBlock, head)), head);
-  return state.metaById;
+  return indexEvents(decodeLogs(await getLogsChunked(escrow, deployBlock, head)), head);
 }
 
 export const readBounty = (escrow: Address, id: bigint): Promise<Bounty> =>
