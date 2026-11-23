@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { CLAIMANT, FUNDER, META, VERIFIERS, makeBounty, ZERO_ADDR } from "../fixtures";
 
@@ -14,6 +14,7 @@ vi.mock("../../src/wallet/DisputePanel", () => ({ default: () => <p>dispute pane
 
 import { bountyRole } from "../../src/wallet/role";
 import ClaimedNote from "../../src/wallet/ClaimedNote";
+import { SubmissionHelper } from "../../src/wallet/SubmissionHelper";
 import VerifierReviewLink from "../../src/wallet/VerifierReviewLink";
 import PaidNote from "../../src/wallet/PaidNote";
 import PendingActions from "../../src/wallet/PendingActions";
@@ -25,6 +26,7 @@ vi.mock("../../src/hooks/queries", () => ({
 const view = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 const claimed = makeBounty({ state: 1, payee: CLAIMANT, claimRound: 1n, claimExpiresAt: 4_000_000_000n });
 beforeEach(() => { m.address = undefined; m.task = null; m.taskPending = false; m.taskError = null; });
+afterEach(() => vi.unstubAllEnvs());
 
 describe("bountyRole", () => {
   const b = makeBounty({ payee: CLAIMANT });
@@ -105,6 +107,48 @@ describe("claimed note", () => {
     m.taskError = "rate limited";
     expect(text(CLAIMANT)).toMatch(/Couldn't read the issue brief/);
     expect(text(CLAIMANT)).not.toMatch(/Open a pull request/);
+  });
+
+  it("gives the claimant the submission instructions and helper on a human task, with the flag on", () => {
+    vi.stubEnv("VITE_HUMAN_TASKS", "1");
+    m.task = { type: "testing" };
+    const t = text(CLAIMANT);
+    expect(t).toMatch(/postmark-submission v1 url=…/);
+    expect(t).toMatch(/put the report below the line in the same comment/);
+    expect(t).toMatch(/build your submission line/);
+  });
+  it("keeps the report note off for url tasks and hides the helper when the flag is off or for other roles", () => {
+    vi.stubEnv("VITE_HUMAN_TASKS", "1");
+    m.task = { type: "url" };
+    const t = text(CLAIMANT);
+    expect(t).toMatch(/postmark-submission v1 url=…/);
+    expect(t).not.toMatch(/put the report below/);
+    vi.stubEnv("VITE_HUMAN_TASKS", "");
+    expect(text(CLAIMANT)).not.toMatch(/build your submission line/);
+    expect(text(CLAIMANT)).not.toMatch(/Open a pull request/);
+    vi.stubEnv("VITE_HUMAN_TASKS", "1");
+    for (const a of [FUNDER, VERIFIERS[0], undefined]) {
+      expect(text(a)).not.toMatch(/build your submission line/);
+      expect(text(a)).not.toMatch(/postmark-submission/);
+    }
+    expect(text(FUNDER)).toMatch(/submission lands/);
+    expect(text(VERIFIERS[0])).toMatch(/review the claimant's submission/);
+  });
+});
+
+describe("submission helper", () => {
+  it("builds the canonical line from an https URL and validates it", () => {
+    const r = view(<SubmissionHelper />);
+    const input = screen.getByLabelText("Submission URL");
+    expect(screen.getByRole("button", { name: "Copy" })).toBeDisabled();
+    fireEvent.change(input, { target: { value: "http://insecure.example.com" } });
+    expect(screen.getByRole("alert")).toHaveTextContent(/https/);
+    expect(screen.getByRole("button", { name: "Copy" })).toBeDisabled();
+    fireEvent.change(input, { target: { value: "https://example.com/report.pdf" } });
+    expect(screen.getByText("postmark-submission v1 url=https://example.com/report.pdf")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
+    r.unmount();
   });
 });
 

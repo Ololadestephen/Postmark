@@ -2,16 +2,20 @@ import WalletRoot from "./WalletRoot";
 import { Countdown, SectionLabel, shortAddr } from "../components/ui";
 import { useBountyRole } from "./role";
 import { useBountyTask } from "../hooks/queries";
+import { humanTasksEnabled } from "../flags";
 import { ProofHelper } from "./ProofHelper";
+import { SubmissionHelper } from "./SubmissionHelper";
 import type { Bounty } from "../chain/client";
 import type { BountyMeta } from "../chain/indexer";
 
 const onchainType = (t: string | undefined) => t === "onchain-call" || t === "onchain-deploy";
+const humanType = (t: string | undefined) => t === "testing" || t === "url";
 
 function Note({ id, bounty, meta }: { id?: bigint | undefined; bounty: Bounty; meta?: BountyMeta | undefined }) {
   const { role } = useBountyRole(bounty);
   const info = useBountyTask(meta);
-  const task = info.task && onchainType(info.task.type) ? info.task : null;
+  const task = info.task && (onchainType(info.task.type) || humanType(info.task.type)) ? info.task : null;
+  const human = task && humanType(task.type);
   const issue = meta ? `Fixes #${meta.number.toString()}` : "Fixes #<issue number>";
   const label = role === "claimant" ? "your claim is live" : "claimed";
   return (
@@ -21,6 +25,11 @@ function Note({ id, bounty, meta }: { id?: bigint | undefined; bounty: Bounty; m
         {role === "claimant" ? (
           info.pending ? "Loading the issue brief…"
           : info.error ? "Couldn't read the issue brief — reload to see your instructions."
+          : human ? (
+            humanTasksEnabled()
+              ? <>Your claim is stamped on chain. Post <code className="font-mono text-ink">postmark-submission v1 url=…</code> on the issue before the claim expires{task.type === "testing" ? " — put the report below the line in the same comment" : ""}.</>
+              : "Human-judged task — post your submission on the issue; the verifiers review it."
+          )
           : task ? (
             task.type === "onchain-call"
               ? <>Your claim is stamped on chain. Send the call to <span className="font-mono text-ink">{task.contract}{task.function ? ` · ${task.function}` : ""}</span> from <span className="font-mono text-ink">{shortAddr(bounty.payee)}</span>, then post <code className="font-mono text-ink">postmark-proof v1 tx=0x…</code> on the issue before the claim expires.</>
@@ -29,9 +38,10 @@ function Note({ id, bounty, meta }: { id?: bigint | undefined; bounty: Bounty; m
             <>Your claim is stamped on chain. Open a pull request whose description says <code className="font-mono text-ink">{issue}</code> before the claim expires; the verifiers review it once it is merged.</>
           )
         ) : role === "funder" ? (
-          <>Claimed by <span className="font-mono text-ink">{shortAddr(bounty.payee)}</span>. The verifiers check once the claimant's {info.pending || info.error ? "work lands" : task ? "proof transaction lands" : "PR is merged"}; nothing for you to do unless the claim expires.</>
+          <>Claimed by <span className="font-mono text-ink">{shortAddr(bounty.payee)}</span>. The verifiers check once the claimant's {info.pending || info.error ? "work lands" : human ? "submission lands" : task ? "proof transaction lands" : "PR is merged"}; nothing for you to do unless the claim expires.</>
         ) : role === "verifier" ? (
-          task ? "Claimed — you'll review once the proof transaction is posted."
+          human ? "Claimed — you'll review the claimant's submission."
+            : task ? "Claimed — you'll review once the proof transaction is posted."
             : info.pending || info.error ? "Claimed — you'll review once the work is posted."
             : "Claimed — you'll review once the PR is merged."
         ) : (
@@ -48,7 +58,8 @@ function Note({ id, bounty, meta }: { id?: bigint | undefined; bounty: Bounty; m
             : "Claim expired? Anyone can call Reopen to free the bounty for a new claim."}
         </p>
       )}
-      {role === "claimant" && task && id !== undefined && <ProofHelper id={id} bounty={bounty} task={task} />}
+      {role === "claimant" && task && onchainType(task.type) && id !== undefined && <ProofHelper id={id} bounty={bounty} task={task} />}
+      {role === "claimant" && human && humanTasksEnabled() && <SubmissionHelper />}
     </div>
   );
 }
