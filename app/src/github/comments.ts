@@ -2,6 +2,7 @@
 
 export interface GhComment {
   id: number; user: { login: string }; body: string; created_at: string;
+  updated_at?: string;
 }
 export interface GhTimelineEvent {
   event: string; source?: { issue?: { number: number; pull_request?: { html_url?: string } } };
@@ -84,6 +85,32 @@ export function findProofComments(comments: GhComment[]): ProofComment[] {
     for (const m of c.body?.matchAll(PROOF_RE) ?? []) {
       out.push({ commentId: c.id, githubLogin: c.user.login.toLowerCase(), txHash: m[1]!.toLowerCase() });
     }
+  }
+  return out;
+}
+
+const SUBMISSION_RE = /^[^\n]*postmark-submission\s+v1\s+url=(https:\/\/\S+?)\s*$/im;
+
+export interface SubmissionComment {
+  commentId: number; githubLogin: string; url: string;
+  /** comment creation time in seconds */
+  createdAt: bigint;
+  /** updated_at after created_at — the comment text may have changed since posting */
+  edited: boolean;
+}
+
+/** Comments carrying the SPEC submission line (the first match in a body counts;
+ * a report may follow the line in the same body for testing tasks). */
+export function findSubmissionComments(comments: GhComment[]): SubmissionComment[] {
+  const out: SubmissionComment[] = [];
+  for (const c of comments) {
+    const m = c.body?.match(SUBMISSION_RE);
+    if (!m) continue;
+    out.push({
+      commentId: c.id, githubLogin: c.user.login.toLowerCase(), url: m[1]!,
+      createdAt: BigInt(Math.floor(Date.parse(c.created_at) / 1000)),
+      edited: !!c.updated_at && Date.parse(c.updated_at) > Date.parse(c.created_at),
+    });
   }
   return out;
 }

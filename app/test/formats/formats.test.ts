@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   workHashOf, identityHashOf, payEvidenceHashOf, refundEvidenceHashOf,
-  disputeEvidenceHashOf, resolutionEvidenceHashOf,
+  disputeEvidenceHashOf, resolutionEvidenceHashOf, submissionEvidenceHashOf,
 } from "../../src/formats/hashes";
 import { claimMessage, verdictMessage, CLAIM_TYPEHASH, VERDICT_TYPEHASH } from "../../src/formats/messages";
 import { keccak256, stringToBytes, stringToHex, concatHex, encodeAbiParameters } from "viem";
@@ -20,6 +20,8 @@ const V = {
   dispute: "0xe28c383115cf52251c84f5f32af6d94ebfa237875987b0c70abed7dd4ec43791",
   // cast abi-encode "f(string,uint256,bytes32)" "postmark-resolution-v1" 777 0x1111…1111
   resolution: "0x0b9acc3af1d4fb3092dfa5c4c9e2faafe20cbb6986130350744ad9fa27eb78d5",
+  // cast abi-encode "f(string,string,uint256,string,string,uint64)" "postmark-submission-v1" "testing" 12345 "octocat" "https://example.com/report" 1700000000
+  submission: "0xbf3dde40440e6050edf25a76254ff4da36b7c4207b9513a4b40e91dae6e07513",
 } as const;
 
 describe("off-chain hashes (SPEC Off-chain formats)", () => {
@@ -46,6 +48,13 @@ describe("off-chain hashes (SPEC Off-chain formats)", () => {
     expect(resolutionEvidenceHashOf(777n,
       "0x1111111111111111111111111111111111111111111111111111111111111111"))
       .toBe(V.resolution);
+  });
+  it("submissionEvidenceHash matches cast", () => {
+    expect(submissionEvidenceHashOf("testing", 12345n, "octocat", "https://example.com/report", 1700000000))
+      .toBe(V.submission);
+    // login normalises to lowercase like the other evidence hashes
+    expect(submissionEvidenceHashOf("testing", 12345, "OctoCat", "https://example.com/report", 1700000000n))
+      .toBe(V.submission);
   });
 });
 

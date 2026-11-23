@@ -38,6 +38,17 @@ export function onchainEvidenceHashOf(
     ["postmark-onchain-v1", type, txHash, BigInt(blockTimestamp), claimant]));
 }
 
+/** PAY evidence for human-judged task bounties (testing/url): the chosen submission
+ * comment. mergedAt = the comment's created_at in seconds. */
+export function submissionEvidenceHashOf(
+  type: string, commentId: bigint | number, githubLogin: string, url: string, createdAt: bigint | number,
+): Hex {
+  return keccak256(encodeAbiParameters(
+    [{ type: "string" }, { type: "string" }, { type: "uint256" },
+      { type: "string" }, { type: "string" }, { type: "uint64" }],
+    ["postmark-submission-v1", type, BigInt(commentId), githubLogin.toLowerCase(), url, BigInt(createdAt)]));
+}
+
 export const REFUND_REASONS = ["not-merged", "ineligible", "identity-mismatch", "withdrawn", "other"] as const;
 export type RefundReason = (typeof REFUND_REASONS)[number];
 

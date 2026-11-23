@@ -9,6 +9,10 @@ export function proofLine(txHash: `0x${string}`) {
   return `postmark-proof v1 tx=${txHash.toLowerCase()}`;
 }
 
+export function submissionLine(url: string) {
+  return `postmark-submission v1 url=${url.trim()}`;
+}
+
 export function disputeLine(bountyId: bigint, escrow: `0x${string}`) {
   return `postmark-dispute v1 chain=9800 escrow=${escrow.toLowerCase()} bounty=${bountyId}`;
 }

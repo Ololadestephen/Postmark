@@ -76,8 +76,9 @@ async function ghFetch<T>(url: string, maxAgeMs = 0): Promise<T> {
 }
 
 export {
-  findClaimComments, findDisputeComments, findProofComments, linkedPrNumbers,
+  findClaimComments, findDisputeComments, findProofComments, findSubmissionComments, linkedPrNumbers,
   type ClaimComment, type DisputeComment, type GhComment, type GhTimelineEvent, type ProofComment,
+  type SubmissionComment,
 } from "./comments";
 
 const API = "https://api.github.com";
