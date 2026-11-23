@@ -3,7 +3,7 @@
 [![Built on QoreChain](https://build.qorechain.io/badge/postmark.svg)](https://build.qorechain.io/p/postmark)
 
 QoreChain Post-Quantum dApp track: a reusable **real ML-DSA-87 Foundry test
-library**, plus `PostmarkEscrow`, a GitHub bounty escrow: contributors make a PQ-signed claim,
+library**, plus `PostmarkEscrow`, a bounty escrow for GitHub code work and on-chain tasks: contributors make a PQ-signed claim,
 and payout needs 2-of-3 ML-DSA-87 verifier verdicts.
 **Real issues, testnet payouts**: diana pays test QOR, which has no monetary value.
 
@@ -19,6 +19,19 @@ Repository: [github.com/Ololadestephen/Postmark](https://github.com/Ololadesteph
 4. **Challenge** — a winning verdict sits Pending for 24 hours. Anyone can bond a dispute; a bonded dispute freezes the payout.
 5. **Resolution** — the same verifier set signs a second DISPUTE-phase verdict; upheld sends the bond plus challenge reward to the disputer, rejected pays the original verdict.
 6. **Withdraw** — payouts land as pull-payment credits; the payee withdraws to their own address (a live PQ key is required for gated credits).
+
+### Task types
+
+Every bounty points at a GitHub issue or PR on chain. An issue can also carry a `postmark-task` block that turns it into a task bounty; the contract is the same for every type (formats in [SPEC.md](SPEC.md)).
+
+| Type | The work | Who decides | Status |
+|---|---|---|---|
+| Code (no task block) | A merged PR by the claimant that says `Fixes #N` (or Closes/Resolves) | The verifier bots | Live |
+| `onchain-call` | A successful transaction from the claimant's address to a given contract, optionally a given function, after the claim and before the deadline | The verifier bots, from diana chain data | Live ([bounty #4](https://usepostmark.vercel.app/bounty/4)) |
+| `onchain-deploy` | A direct contract creation from the claimant's address, optionally with a given runtime codehash | The verifier bots, from diana chain data | Live |
+| `testing`, `url` | A `postmark-submission v1 url=…` comment, with the report below it for testing | Human verifiers (the bots abstain); at least two of the three must be people | Built, off by default (`VITE_HUMAN_TASKS=1`) until one is paid on production |
+
+For task bounties the claim line carries a hash of the brief (`brief=0x…`). If the funder edits or removes the block after the claim, the bots abstain and the page says so. The claimant posts `postmark-proof v1 tx=0x…` for on-chain tasks; the claimed bounty page checks the transaction and builds that line.
 
 ## Deployment (diana testnet, testnet payouts only)
 
@@ -109,12 +122,22 @@ the list of valid roles.
 
 Real GitHub issues in [Ololadestephen/postmark](https://github.com/Ololadestephen/postmark), funded on the production escrow
 (`0x13De819fE37133d19287aAFE1991a921F84b9F45`) with test QOR, no monetary value. Verifiers: the Postmark bot, the funder's
-own bot and the maintainer as a human tie-breaker.
+own bot and the maintainer as a human tie-breaker. Every verdict below was signed and relayed by the bots on their own schedule.
 
-| Bounty | Issue | Create tx | Claim | Verdict | Finalize | Withdraw |
-|---|---|---|---|---|---|---|
-| #1 | [issue #1](https://github.com/Ololadestephen/postmark/issues/1) | [`0x6e0a0548…514148`](https://dashboard.qorechain.io/explorer/tx/0x6e0a0548ab1eb584db1df015bb65338d2bac2a3c7c4b539bd987ef05b1514148) | pending | pending | pending | pending |
-| #2 | [issue #2](https://github.com/Ololadestephen/postmark/issues/2) | [`0xf465ab3d…99bf2a`](https://dashboard.qorechain.io/explorer/tx/0xf465ab3d0802f1c1287b02f3d8fc4e6bb1f034ce4a55797d21ea2ac36899bf2a) | pending | pending | pending | pending |
+| Bounty | Work | Reward | Create | Claim | Verdict (PAY) | Finalize | State |
+|---|---|---|---|---|---|---|---|
+| #1 | [issue #1](https://github.com/Ololadestephen/postmark/issues/1) · [PR #7](https://github.com/Ololadestephen/Postmark/pull/7) | 0.05 | [`0x6e0a0548…4148`](https://dashboard.qorechain.io/explorer/tx/0x6e0a0548ab1eb584db1df015bb65338d2bac2a3c7c4b539bd987ef05b1514148) | [`0x1b250117…8c59`](https://dashboard.qorechain.io/explorer/tx/0x1b2501170991297e9e09926524ec8d86a64c8fe14a53be9b803e000f47e08c59) | [`0x4204c3d9…adaf`](https://dashboard.qorechain.io/explorer/tx/0x4204c3d9b2d3dbb9edae70fb42d5b0f0a42b6ef6fc834293a6b1846edaf4adaf) | [`0xc0ecea48…3347`](https://dashboard.qorechain.io/explorer/tx/0xc0ecea48fe5023590f9820884887d65ee05405a3c2cf962281786f5af2de3347) | Paid |
+| #2 | [issue #2](https://github.com/Ololadestephen/postmark/issues/2) | 0.05 | [`0xf465ab3d…bf2a`](https://dashboard.qorechain.io/explorer/tx/0xf465ab3d0802f1c1287b02f3d8fc4e6bb1f034ce4a55797d21ea2ac36899bf2a) | [`0xa0b7243a…0a7c`](https://dashboard.qorechain.io/explorer/tx/0xa0b7243a70d1d69edf85bc204e6c549e256fade0465fbb366b271c75b48d0a7c) | [`0xb0dd5576…cc83`](https://dashboard.qorechain.io/explorer/tx/0xb0dd5576d2abf313f008a2a73d6420e510e4731941466e59bb248e6999f7cc83) | [`0xc16f2c36…86b4`](https://dashboard.qorechain.io/explorer/tx/0xc16f2c366e202e19d97d29c033522c23eb5f26b69b047a3b8c5a9127fa9d86b4) | Paid in error, see below |
+| #3 | [issue #8](https://github.com/Ololadestephen/postmark/issues/8) · [PR #9](https://github.com/Ololadestephen/Postmark/pull/9) | 10 | [`0x6dcc70c2…b4b4`](https://dashboard.qorechain.io/explorer/tx/0x6dcc70c20de48b092c7a3faf39ff4eb2601780a5e19ee16f51255ff43e5bb4b4) | [`0x509ece7c…e7a2`](https://dashboard.qorechain.io/explorer/tx/0x509ece7c75739715ab46bb196e1ecc29fa98ba829de4a931039872c8ef71e7a2) | [`0xaacfa1c0…c101`](https://dashboard.qorechain.io/explorer/tx/0xaacfa1c0f5173dd2b42827567a28cabb1fb67f1c82451398272bb47f0a4fc101) | [`0xc1174bb5…98d0`](https://dashboard.qorechain.io/explorer/tx/0xc1174bb5b3f1c735c4f276f7877fd1703c1a7c4cb016bb01e94c4e1d3c3b98d0) | Paid |
+| #4 | [issue #10](https://github.com/Ololadestephen/postmark/issues/10) (`onchain-call`) | 5 | [`0x542c98da…eaf0`](https://dashboard.qorechain.io/explorer/tx/0x542c98dac8092dbb82a49e6c502e07e7e0516c2a03228afc1746248317d5eaf0) | open | | | Open until 29 Nov 12:00 UTC |
+
+**Withdrawal.** The claimant withdrew all three payouts, 10.1 test QOR, in one transaction:
+[`0x961bf677…ea6b`](https://dashboard.qorechain.io/explorer/tx/0x961bf677522f4d636d7f10a21567a703258734a35452bdb529d3e2aff257ea6b).
+He also sent the three finalize transactions himself after each challenge window closed.
+
+**Who did the work.** Bounties #1 and #3 were claimed and completed by [@ToluEnoch](https://github.com/ToluEnoch), an outside contributor who is not a team member. He claimed them with his own registered ML-DSA-87 key and was paid through Postmark like any contributor.
+
+**Bounty #2 was paid in error.** Its verdict came from a GitHub cross-reference: PR #9 (the bounty #3 work) was linked to issue #2 by a maintainer comment that mentioned it, and the bots then counted it. The bots now require a PR to close the exact issue. The 0.05 test QOR payout was left standing; the full incident is in [docs/AUDIT.md](docs/AUDIT.md).
 
 ## Testing
 
@@ -137,8 +160,9 @@ A verifier is an account with a registered ML-DSA-87 key that signs PAY or REFUN
 **What the bot checks.** Every run, for each bounty that names its address as a verifier:
 
 - **Claim identity.** A `postmark-claim v1 …` comment on the issue or PR for this chain, escrow, bounty and claimant, whose GitHub login, claimant and comment id hash to the bounty's stored identity hash.
-- **The work.** For a PR bounty, that PR; for an issue bounty, PRs from the same repository that cross-reference it. A PR qualifies only if it is merged, merged before the deadline and before now, authored by the claimant's login, in the same repo, and has a merge commit.
-- **PAY** only when exactly one PR qualifies. The evidence hash is built from the repo, PR, merge commit, merge time and author.
+- **The work.** For a PR bounty, that PR; for an issue bounty, PRs from the same repository whose title or description closes that exact issue (`Fixes`, `Closes` or `Resolves #N`). A mere mention or cross-reference does not count (see the bounty #2 incident in [docs/AUDIT.md](docs/AUDIT.md)). A PR qualifies only if it is merged, merged before the deadline and before now, authored by the claimant's login, in the same repo, and has a merge commit.
+- **On-chain tasks.** The claim line's brief hash must match the issue's current task block. Each `postmark-proof v1 tx=…` comment from the claimant's GitHub login is checked on diana: succeeded, sent by the claimant, after the claim, before the deadline, right contract and function (or a direct deployment with the right codehash). The earliest passing proof that hasn't already paid another bounty wins; its evidence hash covers the type, transaction, block time and claimant.
+- **PAY** for a code bounty only when exactly one PR qualifies. The evidence hash is built from the repo, PR, merge commit, merge time and author.
 - **REFUND** only when it is conclusive: a PR bounty whose PR was closed unmerged (`not-merged`) or merged by someone else (`ineligible`); an issue closed as not planned (`withdrawn`); or an issue completed by merged PRs none of which are the claimant's (`ineligible`).
 - **Abstain** otherwise: past the deadline, no matching claim comment, GitHub unavailable (any API error), no merged PR from the claimant yet, several qualifying PRs, or the locally built message differs from the contract's `verdictMessage`. It never guesses.
 
@@ -172,6 +196,8 @@ A verifier is an account with a registered ML-DSA-87 key that signs PAY or REFUN
 - Pull payments only; every value transfer is `nonReentrant`; every state change emits events.
 - Keys and seeds never enter the repo — profiles live under `~/.config/postmark/` with mode-600 files; the signer enforces it.
 - Known limits: **no dispute timeout** (a Disputed bounty stays locked unless the verifier set signs a resolution — see THREAT_MODEL.md), the **same-account requirement** (QoreX signs, but an EVM wallet must send the transaction from the same account until QoreX can send EVM transactions), and the unauthenticated **GitHub REST API rate limit** (60 req/h per IP) can stall comment scans.
+- **QoreX can't send the escrow calls yet.** QoreX refuses to sign `MsgCrossVMCall` from websites ("QoreX cannot show what /qorechain.crossvm.v1.MsgCrossVMCall does, so it will not sign it"), so a QoreX-only route for claim, finalize and withdraw is blocked by the wallet, not by Postmark. The "Send with QoreX" buttons from [PR #9](https://github.com/Ololadestephen/Postmark/pull/9) are built and tested but stay off (`VITE_QOREX_NATIVE=1`); MetaMask with a scoped EVM window is the route today.
+- **On-chain checks prove a transaction happened**, not that it was useful; the human-judged testing and URL types rest entirely on their human verifiers (THREAT_MODEL.md T-13).
 - Trust model, griefing analysis and the full format spec: [THREAT_MODEL.md](THREAT_MODEL.md), [SPEC.md](SPEC.md).
 
 ## Audit
