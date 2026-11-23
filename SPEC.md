@@ -496,7 +496,7 @@ with `reasonCode` one of `not-merged`, `ineligible`, `identity-mismatch`, `withd
 **Resolution evidence.** `keccak256(abi.encode("postmark-resolution-v1", uint256 disputeCommentId,
 bytes32 basisHash))`, where `basisHash` is a PAY or REFUND evidence hash in the formats above.
 
-**On-chain task bounties.** An issue (kind 0) may carry exactly one fenced block with info string
+**Task bounties.** An issue (kind 0) may carry exactly one fenced block with info string
 `postmark-task` in its body; an issue with none is an ordinary code bounty. The block is `key: value`
 lines (`#` comments and blank lines ignored, keys `type`, `contract`, `function`, `codehash` only):
 
@@ -507,8 +507,10 @@ function: name(types)     # optional, onchain-call only; no spaces or parameter 
 codehash: 0x<64 hex>      # optional, onchain-deploy only; keccak256 of the runtime bytecode
 ```
 
-`testing` and `url` parse but are not auto-judged yet (bots abstain). For on-chain types the claim
-line carries an extra field `brief=0x<64 hex>` where
+`testing` and `url` are human-judged types: the bots always abstain on them (see the human-judged
+section below), and the app only offers them in Create when built with `VITE_HUMAN_TASKS=1`. Every
+task type binds the claim to the brief:
+the claim line carries an extra field `brief=0x<64 hex>` where
 `brief = keccak256(abi.encode("postmark-brief-v1", string canonicalText))` and `canonicalText` is the
 canonical key-ordered rendering of the task (comments and whitespace do not change it; any field
 change does). The claimant proves the work with one comment per transaction:
@@ -526,6 +528,20 @@ address claimant))` with `mergedAt` = the transaction's block timestamp. A proof
 `initialEvidenceHash` on another bounty is skipped; bots abstain only when every passing proof is
 taken. Any RPC failure or ambiguity is an
 abstention, never a REFUND; the `not_planned` withdrawn refund still applies.
+
+**Human-judged task bounties (`testing`, `url`).** The claim line carries `brief=` like any task
+bounty; the bots abstain on these types, so a PAY must come from human verifiers (Create requires at
+least two of the three verifiers to be non-bot when the feature is enabled). The claimant submits by
+posting a comment on the issue whose first matching line is
+`postmark-submission v1 url=<https URL>` — the URL must be `https://` with no whitespace. For
+`testing` tasks the report follows in the same comment body. A PAY verdict names one submission:
+`mergedAt` = the comment's `created_at` in Unix seconds and
+`evidenceHash = keccak256(abi.encode("postmark-submission-v1", string type, uint256 commentId,
+string githubLogin /*lowercase*/, string url, uint64 createdAt))`. The chosen comment must be posted
+by the claim comment's GitHub login, at or after the claim time, and at or before the deadline (and
+not in the future); the review tool flags comments whose `updated_at` is after `created_at` as
+edited, and disables PAY when the claim's `brief` does not match the issue's current task block.
+REFUND uses the ordinary reasons and evidence hash, unchanged.
 
 **Verdict bundle.** Verifiers sign separately and pass a JSON bundle along (file or paste):
 `{"format":"postmark-verdict-bundle-v1","chainId":9800,"nativeChainId":"qorechain-diana",

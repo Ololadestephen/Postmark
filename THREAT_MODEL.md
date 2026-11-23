@@ -106,6 +106,30 @@ Issue bounties whose work is a diana transaction (`postmark-task` block in the i
   block, code). Every failure mode abstains rather than refunds, so a flaky node delays a verdict
   but cannot reverse it.
 
+### T-13 Human-judged task bounties
+Issue bounties whose work is judged by people (`testing` / `url` task blocks; the claimant posts a
+`postmark-submission v1 url=…` comment).
+- **Judgement is entirely the human verifiers':** the bots always abstain on these types. Nothing
+  validates the URL's content — a PAY means "at least two of three verifiers chose to pay for that
+  submission", and the review tool only surfaces the timestamps, login and brief binding. The Create
+  flow requires at most one curated bot among the three verifiers for a reason: two bots plus one
+  human could never reach quorum on their own.
+- **Comment edits:** the claimant (or anyone editing their own comment) can change the comment text
+  after posting. The evidence hash binds `commentId + githubLogin + url + createdAt`, not the body,
+  so editing the report text after a verdict does not change the evidence — but a verifier could
+  have read different text than what stands later. The review tool flags comments whose
+  `updated_at` is after `created_at`; an edited submission is a warning, not a proof of fraud.
+- **Collusion:** the funder picks all three verifiers, and funder-picked verifiers may collude with
+  the funder — or with a claimant — to pay a worthless submission. The challenge/dispute window is
+  the only protocol check; the bounty model already relies on it for code bounties, and it matters
+  more here because no automated check gates the payment at all.
+- **Brief binding:** same as T-12 — the claim's `brief` binds the task block, so editing or removing
+  the block after the claim stalls payment (bots abstain; the review tool warns and disables PAY)
+  rather than redirecting it.
+- **Timing reuse:** a submission posted before the claim does not count (`createdAt` must be at or
+  after the claim time) and one posted after the deadline cannot pay. `initialEvidenceHash` still
+  commits to the chosen comment, so two bounties cannot pay the same submission.
+
 ## Out of scope for v1
 GitHub identity proofs, claim bonds, protocol fees and treasury, ERC20 or multi-asset bounties (see SPEC.md Future work), upgrades or admin roles, mainnet deployment.
 
