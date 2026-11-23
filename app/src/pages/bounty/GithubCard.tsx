@@ -25,6 +25,7 @@ export function TaskLine({ task }: { task: Task }) {
       )}
       {task.function && <> · <code className="font-mono text-ink">{task.function}</code></>}
       {task.codehash && <> · codehash <span className="font-mono text-ink">{task.codehash.slice(0, 14)}…</span></>}
+      {(task.type === "testing" || task.type === "url") && <> — human-judged task; the bots abstain, the verifiers review the claimant's submission</>}
     </p>
   );
 }
