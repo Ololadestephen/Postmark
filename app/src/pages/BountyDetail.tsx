@@ -120,7 +120,7 @@ export default function BountyDetail() {
                 </div>
               )}
               {b.state === STATE.Claimed && (
-                wanted ? <Suspense fallback={null}><ClaimedNote bounty={b} meta={meta} /></Suspense> : null
+                wanted ? <Suspense fallback={null}><ClaimedNote id={id} bounty={b} meta={meta} /></Suspense> : null
               )}
               {wanted && (b.state === STATE.Claimed || b.state === STATE.Disputed) && (
                 <Suspense fallback={null}><VerifierReviewLink id={id} bounty={b} /></Suspense>
@@ -152,7 +152,7 @@ export default function BountyDetail() {
               {b.state === STATE.Open && meta && (
                 wanted
                   ? <Suspense fallback={null}><ClaimPanel id={id} bounty={b} meta={meta} /></Suspense>
-                  : nowSec() < b.deadline && <ClaimIntro />
+                  : nowSec() < b.deadline && <ClaimIntro meta={meta} />
               )}
               <details className="rounded-xl border border-ink/10 bg-white p-5">
                 <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.18em] text-gray">all fields</summary>

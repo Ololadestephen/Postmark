@@ -10,6 +10,7 @@ vi.mock("../../src/hooks/queries", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/hooks/queries")>()),
   usePqcStatus: () => ({ data: { live: true }, isPending: false, error: null }),
   useGithubItem: () => github.item,
+  useBountyTask: () => ({ task: null, invalid: null, pending: false }),
 }));
 vi.mock("../../src/github/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/github/client")>()),

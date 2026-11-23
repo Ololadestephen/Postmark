@@ -3,7 +3,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { CLAIMANT, FUNDER, META, VERIFIERS, makeBounty, ZERO_ADDR } from "../fixtures";
 
-const m = vi.hoisted(() => ({ address: undefined as string | undefined }));
+const m = vi.hoisted(() => ({
+  address: undefined as string | undefined,
+  task: null as { type: string; contract?: `0x${string}`; function?: string; codehash?: `0x${string}` } | null,
+}));
 vi.mock("wagmi", () => ({ useAccount: () => ({ address: m.address, isConnected: !!m.address }) }));
 vi.mock("../../src/wallet/WalletRoot", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 vi.mock("../../src/wallet/DisputePanel", () => ({ default: () => <p>dispute panel</p> }));
@@ -14,9 +17,13 @@ import VerifierReviewLink from "../../src/wallet/VerifierReviewLink";
 import PaidNote from "../../src/wallet/PaidNote";
 import PendingActions from "../../src/wallet/PendingActions";
 
+vi.mock("../../src/hooks/queries", () => ({
+  useBountyTask: () => ({ task: m.task, invalid: null, pending: false }),
+  useIndex: () => ({ data: undefined }),
+}));
 const view = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 const claimed = makeBounty({ state: 1, payee: CLAIMANT, claimRound: 1n, claimExpiresAt: 4_000_000_000n });
-beforeEach(() => { m.address = undefined; });
+beforeEach(() => { m.address = undefined; m.task = null; });
 
 describe("bountyRole", () => {
   const b = makeBounty({ payee: CLAIMANT });
@@ -57,7 +64,7 @@ describe("review link", () => {
 describe("claimed note", () => {
   const text = (addr: string | undefined) => {
     m.address = addr;
-    const r = view(<ClaimedNote bounty={claimed} meta={META} />);
+    const r = view(<ClaimedNote id={7n} bounty={claimed} meta={META} />);
     const t = r.container.textContent ?? "";
     r.unmount();
     return t;
@@ -73,6 +80,22 @@ describe("claimed note", () => {
     expect(text(VERIFIERS[0])).not.toMatch(/Reopen/);
     expect(text(undefined)).toMatch(/waiting on verifier verdicts/);
     expect(text(undefined)).toMatch(/Reopen/);
+  });
+  it("gives the claimant the proof instructions and helper on an on-chain task", () => {
+    m.task = { type: "onchain-call", contract: `0x${"ab".repeat(20)}` };
+    const t = text(CLAIMANT);
+    expect(t).toMatch(/Send the call to/);
+    expect(t).toMatch(/postmark-proof v1 tx=0x…/);
+    expect(t).toMatch(/check your proof/);
+  });
+  it("shows the helper to nobody else and keeps PR copy for non-claimants", () => {
+    m.task = { type: "onchain-call", contract: `0x${"ab".repeat(20)}` };
+    for (const a of [FUNDER, VERIFIERS[0], undefined]) {
+      const t = text(a);
+      expect(t).not.toMatch(/check your proof/);
+    }
+    expect(text(FUNDER)).toMatch(/proof transaction lands/);
+    expect(text(VERIFIERS[0])).toMatch(/proof transaction is posted/);
   });
 });
 

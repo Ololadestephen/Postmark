@@ -23,6 +23,7 @@ vi.mock("../../src/wallet/Readiness", () => ({ ReadinessChecklist: () => null })
 vi.mock("../../src/wallet/qorex", () => ({ useQorex: () => ({ canSignArbitrary: false, qorAddress: null, native: null }) }));
 vi.mock("../../src/hooks/queries", () => ({
   usePqcStatus: () => ({ data: m.myKeyLive === undefined ? undefined : { live: m.myKeyLive } }),
+  useBountyTask: () => ({ task: null, invalid: null, pending: false }),
 }));
 vi.mock("../../src/github/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/github/client")>()),

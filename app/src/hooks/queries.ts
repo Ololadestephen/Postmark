@@ -4,6 +4,8 @@ import { fetchIndex, type IndexerState } from "../chain/indexer";
 import { pqcKeyStatus, type PqcStatus } from "../chain/pqc";
 import { fetchEvmWindow } from "../chain/window";
 import { getAllComments, getIssue, getPull, type GhIssue, type GhPull } from "../github/client";
+import { parseTaskBlock, type Task } from "../github/task";
+import type { BountyMeta } from "../chain/indexer";
 import { VERIFIER_REGISTRY } from "../chain/config";
 import { VERIFIERS } from "../data/verifiers";
 import type { Listing } from "../formats/verifierListing";
@@ -89,6 +91,28 @@ export const useGithubItem = (w: WorkItem, opts: {
   enabled: opts.enabled ?? true,
   retry: opts.retry ?? false,
 });
+
+export interface BountyTaskInfo {
+  /** the parsed task block, or null for an ordinary code bounty */
+  task: Task | null;
+  /** set when the issue carries a malformed task block */
+  invalid: string | null;
+  pending: boolean;
+}
+
+const EMPTY_ITEM = { ownerRepo: "", kind: 0, number: 0 } as const;
+
+/** The task block in an issue's body (issue bounties only; PR bounties are always code). */
+export function useBountyTask(meta: BountyMeta | undefined): BountyTaskInfo {
+  const issue = useGithubItem(meta ?? EMPTY_ITEM, { enabled: !!meta && meta.kind === 0 });
+  if (!meta || meta.kind !== 0) return { task: null, invalid: null, pending: false };
+  if (issue.isPending) return { task: null, invalid: null, pending: true };
+  if (issue.error || !issue.data) return { task: null, invalid: null, pending: false };
+  const parsed = parseTaskBlock((issue.data as GhIssue).body ?? null);
+  if (!parsed) return { task: null, invalid: null, pending: false };
+  if ("error" in parsed) return { task: null, invalid: parsed.error, pending: false };
+  return { task: parsed.task, invalid: null, pending: false };
+}
 
 /** Latest block number, polled lightly; an error marks the network degraded. */
 export const useBlockNumber = () => useQuery({

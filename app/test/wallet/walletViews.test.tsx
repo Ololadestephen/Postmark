@@ -34,6 +34,7 @@ vi.mock("../../src/hooks/queries", () => ({
   useIndex: () => m.index, useBounties: () => m.bounties,
   usePqcStatus: () => ({ data: m.pqcLive === undefined ? undefined : { live: m.pqcLive } }),
   useGithubItem: () => m.githubItem,
+  useBountyTask: () => ({ task: null, invalid: null, pending: false }),
 }));
 vi.mock("../../src/wallet/Readiness", () => ({ ReadinessChecklist: () => null }));
 vi.mock("../../src/chain/pqc", () => ({ livePqcKey: (...a: unknown[]) => m.livePqcKey(...a) }));

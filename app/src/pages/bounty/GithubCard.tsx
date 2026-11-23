@@ -4,9 +4,30 @@ import { Card, Skeleton } from "../../components/ui";
 import { useGithubItem } from "../../hooks/queries";
 import { getLinkedPrs, getPull, GithubRateLimitError, type GhIssue, type GhPull } from "../../github/client";
 import { githubItemLabel, githubItemUrl, type WorkItem } from "../../github/parse";
+import { parseTaskBlock, type Task } from "../../github/task";
+import { explorerAddress } from "../../chain/config";
 
 const FIVE_MIN = 5 * 60_000;
 const SLOW_GITHUB_MS = 10_000;
+
+/** The task brief from the issue body, e.g. "on-chain task · calls 0x… · register(bytes)". */
+export function TaskLine({ task }: { task: Task }) {
+  return (
+    <p className="mt-3 text-sm text-gray">
+      task <span className="font-medium text-ink">{task.type}</span>
+      {task.contract && (
+        <> · contract{" "}
+          <a className="font-mono text-deep underline underline-offset-4"
+            href={explorerAddress(task.contract)} target="_blank" rel="noreferrer">
+            {task.contract.slice(0, 10)}…{task.contract.slice(-4)}
+          </a>
+        </>
+      )}
+      {task.function && <> · <code className="font-mono text-ink">{task.function}</code></>}
+      {task.codehash && <> · codehash <span className="font-mono text-ink">{task.codehash.slice(0, 14)}…</span></>}
+    </p>
+  );
+}
 
 function MergeNote({ pr }: { pr: GhPull }) {
   return (
@@ -78,6 +99,10 @@ export function GithubCard(item: WorkItem) {
           ))}
         </div>
       )}
+      {kind === 0 && (() => {
+        const parsed = parseTaskBlock((d as GhIssue).body ?? null);
+        return parsed && "task" in parsed ? <TaskLine task={parsed.task} /> : null;
+      })()}
       {kind === 1 && "merged" in d && (
         <p className="mt-3 text-sm">
           {d.merged
