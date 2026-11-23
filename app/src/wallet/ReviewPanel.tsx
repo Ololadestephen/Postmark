@@ -17,10 +17,12 @@ import { formatVerdictComment } from "../formats/verdictComment";
 import { usePrefersLocalSigner } from "./signerPreference";
 import { useIdentityCheck } from "./review/useIdentityCheck";
 import { usePrCheck } from "./review/usePrCheck";
+import { useProofCheck } from "./review/useProofCheck";
 import { useVerdictBuilder } from "./review/useVerdictBuilder";
 import { useVerdictBundle } from "./review/useVerdictBundle";
 import { useVerdictSigning } from "./review/useVerdictSigning";
-import { ClaimUnderReview, IdentityCard, PrCheckCard } from "./review/ClaimChecks";
+import { useBountyTask } from "../hooks/queries";
+import { ClaimUnderReview, IdentityCard, PrCheckCard, ProofCheckCard } from "./review/ClaimChecks";
 import { DecisionCard, SignCard } from "./review/VerdictCards";
 import { BundleCard } from "./review/BundleCard";
 import type { Bounty } from "../chain/client";
@@ -38,8 +40,13 @@ function ReviewTool({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta: Bo
 
   const identity = useIdentityCheck(id, bounty, meta, disputed);
   const pr = usePrCheck(meta, bounty, identity.identity?.login ?? null);
+  const taskInfo = useBountyTask(meta);
+  const onchainTask = taskInfo.task && (taskInfo.task.type === "onchain-call" || taskInfo.task.type === "onchain-deploy")
+    ? taskInfo.task : null;
+  const proof = useProofCheck(id, bounty, onchainTask);
   const builder = useVerdictBuilder({
     id, bounty, phase, disputed, prCheck: pr.prCheck, disputeComment: identity.disputeComment,
+    proof: onchainTask && proof.result ? { task: onchainTask, check: proof.result } : null,
   });
   const bundle = useVerdictBundle(id, bounty, phase, builder.built);
   const signing = useVerdictSigning(bounty, builder.built, bundle.recordSignature);
@@ -69,8 +76,9 @@ function ReviewTool({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta: Bo
       <ClaimUnderReview bounty={bounty} disputed={disputed} />
       <IdentityCard meta={meta} disputed={disputed} status={identity.status} error={identity.error}
         identity={identity.identity} disputeComment={identity.disputeComment} onScan={() => void identity.scan()} />
-      <PrCheckCard meta={meta} pr={pr} />
-      <DecisionCard disputed={disputed} canPay={!!pr.prCheck && canResolve} canResolve={canResolve}
+      {onchainTask ? <ProofCheckCard task={onchainTask} proof={proof} /> : <PrCheckCard meta={meta} pr={pr} />}
+      <DecisionCard disputed={disputed}
+        canPay={(onchainTask ? !!proof.result && proof.result.blockTimestamp !== null : !!pr.prCheck) && canResolve} canResolve={canResolve}
         scanDone={identity.status === "done"} builder={builder} built={builder.built} />
       {builder.built && (
         <SignCard myVerifierIndex={myVerifierIndex}

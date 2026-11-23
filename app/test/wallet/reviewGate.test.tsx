@@ -15,6 +15,10 @@ vi.mock("../../src/wallet/review/ClaimChecks", () => ({
   ClaimUnderReview: () => <p>review tool</p>, IdentityCard: () => null, PrCheckCard: () => null }));
 vi.mock("../../src/wallet/review/VerdictCards", () => ({ DecisionCard: () => null, SignCard: () => null }));
 vi.mock("../../src/wallet/review/BundleCard", () => ({ BundleCard: () => null }));
+vi.mock("../../src/hooks/queries", () => ({
+  useBountyTask: () => ({ task: null, invalid: null, pending: false }),
+  useIndex: () => ({ data: undefined }),
+}));
 vi.mock("../../src/hooks/useTxAction", () => ({ useTxAction: () => ({ run: vi.fn(), state: { phase: "idle" } }) }));
 vi.mock("../../src/wallet/qorex", () => ({ useQorex: () => ({ canSignArbitrary: false, qorAddress: null }) }));
 

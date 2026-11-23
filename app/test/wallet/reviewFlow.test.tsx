@@ -3,7 +3,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-li
 import { CLAIMANT, META, VERIFIERS, makeBounty } from "../fixtures";
 import { ESCROW_ADDRESS } from "../../src/chain/config";
 import { claimLine, disputeLine } from "../../src/formats/lines";
-import { identityHashOf, disputeEvidenceHashOf } from "../../src/formats/hashes";
+import { identityHashOf, disputeEvidenceHashOf, onchainEvidenceHashOf } from "../../src/formats/hashes";
 import type { BuiltVerdict } from "../../src/chain/verdict";
 
 const m = vi.hoisted(() => ({
@@ -13,6 +13,9 @@ const m = vi.hoisted(() => ({
   pull: null as unknown, linked: [2] as number[], pullError: null as Error | null,
   signerAddress: "", signerLive: true, keyLive: true, verifyOk: true,
   signature: "0xabcd" as `0x${string}`, buildError: null as Error | null,
+  task: null as { type: string; contract?: `0x${string}`; function?: string; codehash?: `0x${string}` } | null,
+  proof: null as { items: { label: string; ok: boolean }[]; blockTimestamp: bigint | null } | null,
+  proofError: null as Error | null,
 }));
 
 vi.mock("wagmi", () => ({ useAccount: () => ({ address: m.address, isConnected: !!m.address }) }));
@@ -38,6 +41,18 @@ vi.mock("../../src/wallet/pqSigner", () => ({
 }));
 vi.mock("../../src/chain/pqc", () => ({ pqcKeyStatus: async () => ({ live: m.keyLive, pubkey: "0x00" }) }));
 vi.mock("@qorechain/pqc", () => ({ mldsa87: { verify: () => m.verifyOk } }));
+vi.mock("../../src/hooks/queries", () => ({
+  useBountyTask: () => ({ task: m.task, invalid: null, pending: false }),
+  useIndex: () => ({ data: undefined }),
+}));
+vi.mock("../../src/chain/onchainCheck", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../src/chain/onchainCheck")>()),
+  checkOnchainProof: vi.fn(async () => {
+    if (m.proofError) throw m.proofError;
+    return m.proof ?? { items: [], blockTimestamp: null };
+  }),
+  claimedAtFor: vi.fn(async () => 3_900_000_000n),
+}));
 vi.mock("../../src/chain/verdict", async (importOriginal) => {
   const real = await importOriginal<typeof import("../../src/chain/verdict")>();
   return {
@@ -79,7 +94,7 @@ beforeEach(() => {
   Object.assign(m, {
     address: VERIFIERS[0], comments: goodComments(), commentsError: null, pull: mergedPull(), linked: [2],
     pullError: null, signerAddress: VERIFIERS[0], signerLive: true, keyLive: true, verifyOk: true,
-    signature: "0xabcd", buildError: null,
+    signature: "0xabcd", buildError: null, task: null, proof: null, proofError: null,
   });
   localStorage.clear();
   vi.clearAllMocks();
@@ -330,5 +345,24 @@ describe("ReviewPanel", () => {
     render(<ReviewPanel id={7n} bounty={claimed} meta={META} />);
     fireEvent.click(screen.getByRole("button", { name: "REFUND" }));
     expect(await screen.findByText(/outcome REFUND/)).toBeInTheDocument();
+  });
+
+  it("checks the proof transaction on an on-chain task and builds a PAY verdict", async () => {
+    m.task = { type: "onchain-call", contract: `0x${"ab".repeat(20)}` };
+    m.proof = { items: [{ label: "succeeded", ok: true }], blockTimestamp: 1_800_000_000n };
+    const tx = `0x${"aa".repeat(32)}` as `0x${string}`;
+    render(<ReviewPanel id={7n} bounty={claimed} meta={META} />);
+    expect(screen.getByText("proof transaction check")).toBeInTheDocument();
+    expect(screen.queryByText("pull request check")).toBeNull();
+    expect(screen.getByRole("button", { name: "PAY" })).toBeDisabled();
+
+    fireEvent.change(screen.getByPlaceholderText(/proof transaction hash/), { target: { value: tx } });
+    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+    expect(await screen.findByText(/block time/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "PAY" }));
+    const evidence = onchainEvidenceHashOf("onchain-call", tx, 1_800_000_000n, CLAIMANT);
+    expect((await screen.findByText(/evidenceHash/)).textContent).toContain(evidence);
+    expect((await screen.findByText(/mergedAt/)).textContent).toContain("1800000000");
   });
 });

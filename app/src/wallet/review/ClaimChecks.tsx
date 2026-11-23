@@ -1,9 +1,12 @@
 import { AddressLink, Card, Countdown, SectionLabel } from "../../components/ui";
 import { githubItemLabel, githubItemUrl } from "../../github/parse";
+import { explorerTx } from "../../chain/config";
+import type { Task } from "../../github/task";
 import type { Bounty } from "../../chain/client";
 import type { BountyMeta } from "../../chain/indexer";
 import type { ClaimIdentity, DisputeComment } from "./useIdentityCheck";
 import type { PrCheck } from "./usePrCheck";
+import type { ProofCheck } from "./useProofCheck";
 import { ACCENT_BTN, Alert, COMMENT_LINK, GHOST_BTN, TEXT_INPUT } from "./reviewUi";
 
 export function ClaimUnderReview({ bounty, disputed }: { bounty: Bounty; disputed: boolean }) {
@@ -114,6 +117,52 @@ export function PrCheckCard({ meta, pr }: { meta: BountyMeta; pr: {
           <li className="text-gray font-mono text-xs pt-1">
             {pr.prCheck.repo}#{pr.prCheck.number} · by @{pr.prCheck.pr.user.login}
             {pr.prCheck.pr.merged_at && ` · merged ${new Date(pr.prCheck.pr.merged_at).toLocaleString()}`}
+          </li>
+        </ul>
+      )}
+      {failed > 0 && (
+        <p className="mt-2 text-xs text-orange">{failed} check{failed > 1 ? "s" : ""} failed — warnings only; the verdict is your judgment.</p>
+      )}
+    </Card>
+  );
+}
+
+export function ProofCheckCard({ task, proof }: { task: Task; proof: {
+  txHash: string; setTxHash: (v: string) => void; result: ProofCheck | null;
+  error: string | null; busy: boolean; check: () => Promise<void>;
+} }) {
+  const failed = proof.result?.checks.filter((c) => !c.ok).length ?? 0;
+  return (
+    <Card>
+      <SectionLabel>proof transaction check</SectionLabel>
+      <p className="mt-2 text-sm text-gray">
+        Task: <span className="text-ink">{task.type}</span>
+        {task.contract && <> · <span className="font-mono text-ink">{task.contract}</span></>}
+        {task.function && <> · <code className="font-mono text-ink">{task.function}</code></>}
+        {task.codehash && <> · codehash <span className="font-mono text-ink">{task.codehash.slice(0, 14)}…</span></>}
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <input value={proof.txHash} onChange={(e) => proof.setTxHash(e.target.value)}
+          placeholder="0x… proof transaction hash"
+          className={`min-w-0 w-full sm:w-96 ${TEXT_INPUT}`} />
+        <button type="button" onClick={() => void proof.check()} disabled={proof.busy}
+          className={`${GHOST_BTN} px-3 py-2 text-sm`}>
+          {proof.busy ? "Checking…" : "Check"}
+        </button>
+      </div>
+      {proof.error && <Alert>{proof.error}</Alert>}
+      {proof.result && (
+        <ul className="mt-3 space-y-1 text-sm">
+          {proof.result.checks.map((c) => (
+            <li key={c.label} className={c.ok ? "text-deep" : "text-orange"}>
+              {c.ok ? "✓" : "✗"} {c.label}
+            </li>
+          ))}
+          <li className="text-gray font-mono text-xs pt-1">
+            <a className={COMMENT_LINK} href={explorerTx(proof.result.txHash)} target="_blank" rel="noreferrer">
+              tx {proof.result.txHash.slice(0, 14)}…
+            </a>
+            {proof.result.blockTimestamp !== null && ` · block time ${new Date(Number(proof.result.blockTimestamp) * 1000).toLocaleString()}`}
           </li>
         </ul>
       )}
