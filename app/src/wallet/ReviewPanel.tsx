@@ -18,11 +18,15 @@ import { usePrefersLocalSigner } from "./signerPreference";
 import { useIdentityCheck } from "./review/useIdentityCheck";
 import { usePrCheck } from "./review/usePrCheck";
 import { useProofCheck } from "./review/useProofCheck";
+import { useSubmissions, submissionPayable } from "./review/useSubmissions";
 import { useVerdictBuilder } from "./review/useVerdictBuilder";
 import { useVerdictBundle } from "./review/useVerdictBundle";
 import { useVerdictSigning } from "./review/useVerdictSigning";
 import { useBountyTask } from "../hooks/queries";
-import { ClaimUnderReview, IdentityCard, PrCheckCard, ProofCheckCard } from "./review/ClaimChecks";
+import { briefHashOf } from "../github/task";
+import { githubItemUrl } from "../github/parse";
+import { nowSec } from "../chain/time";
+import { ClaimUnderReview, IdentityCard, PrCheckCard, ProofCheckCard, SubmissionsCard } from "./review/ClaimChecks";
 import { DecisionCard, SignCard } from "./review/VerdictCards";
 import { BundleCard } from "./review/BundleCard";
 import type { Bounty } from "../chain/client";
@@ -43,12 +47,17 @@ function ReviewTool({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta: Bo
   const taskInfo = useBountyTask(meta);
   const onchainTask = taskInfo.task && (taskInfo.task.type === "onchain-call" || taskInfo.task.type === "onchain-deploy")
     ? taskInfo.task : null;
+  const humanTask = taskInfo.task && (taskInfo.task.type === "testing" || taskInfo.task.type === "url")
+    ? taskInfo.task : null;
   // the claim bound a brief but the issue no longer parses to a task
   const briefOrphaned = !taskInfo.pending && !taskInfo.error && !taskInfo.task && !!identity.identity?.brief;
   const proof = useProofCheck(id, bounty, onchainTask);
+  const submissions = useSubmissions(id, bounty, meta, identity.identity?.login ?? null);
   const builder = useVerdictBuilder({
     id, bounty, phase, disputed, prCheck: pr.prCheck, disputeComment: identity.disputeComment,
     proof: onchainTask && proof.result ? { task: onchainTask, check: proof.result } : null,
+    submission: humanTask && submissions.selected
+      ? { task: humanTask, submission: submissions.selected } : null,
   });
   const bundle = useVerdictBundle(id, bounty, phase, builder.built);
   const signing = useVerdictSigning(bounty, builder.built, bundle.recordSignature);
@@ -79,6 +88,13 @@ function ReviewTool({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta: Bo
       <IdentityCard meta={meta} disputed={disputed} status={identity.status} error={identity.error}
         identity={identity.identity} disputeComment={identity.disputeComment} onScan={() => void identity.scan()} />
       {onchainTask ? <ProofCheckCard task={onchainTask} proof={proof} />
+        : humanTask ? (
+          <SubmissionsCard task={humanTask}
+            brief={identity.identity?.brief ?? null}
+            scanned={identity.status === "done"} login={identity.identity?.login ?? null}
+            itemUrl={githubItemUrl(meta)} subs={submissions}
+            deadline={bounty.deadline} now={nowSec()} />
+        )
         : taskInfo.invalid || briefOrphaned ? (
           <Card>
             <SectionLabel>task block</SectionLabel>
@@ -90,7 +106,12 @@ function ReviewTool({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta: Bo
           </Card>
         ) : <PrCheckCard meta={meta} pr={pr} />}
       <DecisionCard disputed={disputed}
-        canPay={(onchainTask ? !!proof.result && proof.result.blockTimestamp !== null : !!pr.prCheck) && canResolve} canResolve={canResolve}
+        canPay={(
+          onchainTask ? !!proof.result && proof.result.blockTimestamp !== null
+          : humanTask ? !!submissions.selected
+              && identity.identity?.brief === briefHashOf(humanTask)
+              && submissionPayable(submissions.selected, submissions.claimedAt, bounty.deadline, nowSec())
+          : !!pr.prCheck) && canResolve} canResolve={canResolve}
         scanDone={identity.status === "done"} builder={builder} built={builder.built} />
       {builder.built && (
         <SignCard myVerifierIndex={myVerifierIndex}

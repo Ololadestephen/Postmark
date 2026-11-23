@@ -3,7 +3,9 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-li
 import { CLAIMANT, META, VERIFIERS, makeBounty } from "../fixtures";
 import { ESCROW_ADDRESS } from "../../src/chain/config";
 import { claimLine, disputeLine } from "../../src/formats/lines";
-import { identityHashOf, disputeEvidenceHashOf, onchainEvidenceHashOf } from "../../src/formats/hashes";
+import { identityHashOf, disputeEvidenceHashOf, onchainEvidenceHashOf, submissionEvidenceHashOf } from "../../src/formats/hashes";
+import { briefHashOf } from "../../src/github/task";
+import { claimedAtFor } from "../../src/chain/onchainCheck";
 import type { BuiltVerdict } from "../../src/chain/verdict";
 
 const m = vi.hoisted(() => ({
@@ -81,8 +83,8 @@ const disputeHash = disputeEvidenceHashOf("e2e-disputer", 50n);
 const disputed = makeBounty({ ...claimed, state: 3, disputeEvidenceHash: disputeHash,
   pendingVerdictHash: `0x${"77".repeat(32)}`, challengeEndsAt: 4_000_000_000n });
 
-const comment = (id: number, login: string, body: string) =>
-  ({ id, user: { login }, body, created_at: "2026-11-18T10:00:00Z" });
+const comment = (id: number, login: string, body: string, created = "2026-11-18T10:00:00Z", updated?: string) =>
+  ({ id, user: { login }, body, created_at: created, ...(updated ? { updated_at: updated } : {}) });
 const goodComments = () => [
   comment(11, "e2e-claimant", claimLine(7n, CLAIMANT, ESCROW_ADDRESS)),
   comment(50, "e2e-disputer", disputeLine(7n, ESCROW_ADDRESS)),
@@ -374,5 +376,96 @@ describe("ReviewPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Scan comments" }));
     expect(await screen.findByText(/removed after the claim/)).toBeInTheDocument();
     expect(screen.queryByText("pull request check")).toBeNull();
+  });
+
+  describe("human-judged task", () => {
+    const TESTING_BRIEF = briefHashOf({ type: "testing" });
+    const submission = (id: number, login: string, url: string, created = "2026-11-18T10:00:00Z", updated?: string) =>
+      comment(id, login, `postmark-submission v1 url=${url}\nreport below`, created, updated);
+    const testingClaimed = (over: Record<string, unknown> = {}) => makeBounty({
+      state: 1, payee: CLAIMANT, claimRound: 1n, nonce: 1n,
+      payeeIdentityHash: IDENTITY_HASH, claimExpiresAt: 4_000_000_000n, deadline: 4_000_000_000n, ...over });
+    const setup = async (bounty = testingClaimed()) => {
+      m.task = { type: "testing" };
+      render(<ReviewPanel id={7n} bounty={bounty} meta={META} />);
+      expect(screen.getByText("submission check — human-judged task")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Scan comments" }));
+      await screen.findByText(/identity matches — @e2e-claimant/);
+      fireEvent.click(screen.getByRole("button", { name: "Find submissions" }));
+    };
+
+    it("lists the claimant's submissions and builds a PAY verdict from the selected one", async () => {
+      vi.mocked(claimedAtFor).mockResolvedValueOnce(1_700_000_000n);
+      const url = "https://example.com/test-report";
+      m.comments = [
+        comment(11, "e2e-claimant", claimLine(7n, CLAIMANT, ESCROW_ADDRESS, TESTING_BRIEF)),
+        submission(20, "e2e-claimant", url, "2026-01-10T00:00:00Z"),
+        submission(21, "mallory", "https://mallory.example.com/not-mine"),
+      ];
+      await setup();
+      // only the claimant's submission is listed
+      expect(await screen.findByText(url)).toBeInTheDocument();
+      expect(screen.queryByText(/mallory\.example\.com/)).toBeNull();
+      expect(screen.getByText(/claim brief matches/)).toBeInTheDocument();
+      // single submission is auto-selected; all timing checks pass → PAY enabled
+      expect((await screen.findByText(/posted after the claim/)).className).toContain("text-deep");
+      const createdAt = BigInt(Math.floor(Date.parse("2026-01-10T00:00:00Z") / 1000));
+      fireEvent.click(screen.getByRole("button", { name: "PAY" }));
+      const evidence = submissionEvidenceHashOf("testing", 20n, "e2e-claimant", url, createdAt);
+      expect((await screen.findByText(/evidenceHash/)).textContent).toContain(evidence);
+      expect((await screen.findByText(/mergedAt/)).textContent).toContain(createdAt.toString());
+    });
+
+    it("lets the verifier pick one of several submissions and flags edits", async () => {
+      vi.mocked(claimedAtFor).mockResolvedValueOnce(1_700_000_000n);
+      m.comments = [
+        comment(11, "e2e-claimant", claimLine(7n, CLAIMANT, ESCROW_ADDRESS, TESTING_BRIEF)),
+        submission(20, "e2e-claimant", "https://example.com/first", "2026-01-10T00:00:00Z", "2026-01-11T00:00:00Z"),
+        submission(21, "e2e-claimant", "https://example.com/second", "2026-01-12T00:00:00Z"),
+      ];
+      await setup();
+      expect(await screen.findByText("edited after posting")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "PAY" })).toBeDisabled();
+      fireEvent.click(screen.getByRole("radio", { name: /example\.com\/second/ }));
+      const createdAt = BigInt(Math.floor(Date.parse("2026-01-12T00:00:00Z") / 1000));
+      fireEvent.click(screen.getByRole("button", { name: "PAY" }));
+      const evidence = submissionEvidenceHashOf("testing", 21n, "e2e-claimant", "https://example.com/second", createdAt);
+      expect((await screen.findByText(/evidenceHash/)).textContent).toContain(evidence);
+    });
+
+    it("disables PAY for a submission posted before the claim", async () => {
+      // created before the mocked claim time
+      vi.mocked(claimedAtFor).mockResolvedValueOnce(1_780_000_000n);
+      m.comments = [
+        comment(11, "e2e-claimant", claimLine(7n, CLAIMANT, ESCROW_ADDRESS, TESTING_BRIEF)),
+        submission(20, "e2e-claimant", "https://example.com/old", "2026-01-10T00:00:00Z"),
+      ];
+      await setup();
+      expect((await screen.findByText(/posted after the claim/)).className).toContain("text-orange");
+      expect(screen.getByRole("button", { name: "PAY" })).toBeDisabled();
+    });
+
+    it("disables PAY for a submission posted after the deadline", async () => {
+      vi.mocked(claimedAtFor).mockResolvedValueOnce(1_700_000_000n);
+      m.comments = [
+        comment(11, "e2e-claimant", claimLine(7n, CLAIMANT, ESCROW_ADDRESS, TESTING_BRIEF)),
+        submission(20, "e2e-claimant", "https://example.com/late", "2026-01-10T00:00:00Z"),
+      ];
+      await setup(testingClaimed({ deadline: 1_700_000_000n }));
+      expect((await screen.findByText(/posted by the deadline/)).className).toContain("text-orange");
+      expect(screen.getByRole("button", { name: "PAY" })).toBeDisabled();
+    });
+
+    it("disables PAY when the claim brief does not match the current task block", async () => {
+      vi.mocked(claimedAtFor).mockResolvedValueOnce(1_700_000_000n);
+      m.comments = [
+        comment(11, "e2e-claimant", claimLine(7n, CLAIMANT, ESCROW_ADDRESS, `0x${"aa".repeat(32)}` as `0x${string}`)),
+        submission(20, "e2e-claimant", "https://example.com/x", "2026-01-10T00:00:00Z"),
+      ];
+      await setup();
+      expect(await screen.findByText(/the brief changed after the claim/)).toBeInTheDocument();
+      expect(await screen.findByText("https://example.com/x")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "PAY" })).toBeDisabled();
+    });
   });
 });

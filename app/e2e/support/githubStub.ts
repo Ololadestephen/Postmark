@@ -48,12 +48,13 @@ function commentsPage(route: Route, url: string, all: unknown[]) {
  * dispute lines, paginated 100/page like the real API. */
 export async function mockGithub(page: Page, opts: {
   comments?: unknown[]; pull?: unknown; timeline?: unknown[];
-  mergedAt?: string;
+  mergedAt?: string; issueBody?: string;
   synthesize?: { claimant: string; upToId: bigint };
 } = {}) {
   const issue = {
     number: 1, title: "Postmark sandbox: wire the funder flow", state: "open",
     html_url: `${SANDBOX}/issues/1`, user: { login: "octocat" }, labels: [{ name: "bounty" }], comments: 0,
+    ...(opts.issueBody !== undefined ? { body: opts.issueBody } : {}),
   };
   const pull = opts.pull ?? {
     number: 2, title: "wire the funder flow", state: "closed", merged: true,

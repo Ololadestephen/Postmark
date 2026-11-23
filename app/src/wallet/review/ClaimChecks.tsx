@@ -1,7 +1,9 @@
 import { AddressLink, Card, Countdown, SectionLabel } from "../../components/ui";
 import { githubItemLabel, githubItemUrl } from "../../github/parse";
 import { explorerTx } from "../../chain/config";
-import type { Task } from "../../github/task";
+import { briefHashOf, type Task } from "../../github/task";
+import type { SubmissionComment } from "../../github/client";
+import { submissionCheckItems } from "./useSubmissions";
 import type { Bounty } from "../../chain/client";
 import type { BountyMeta } from "../../chain/indexer";
 import type { ClaimIdentity, DisputeComment } from "./useIdentityCheck";
@@ -168,6 +170,84 @@ export function ProofCheckCard({ task, proof }: { task: Task; proof: {
       )}
       {failed > 0 && (
         <p className="mt-2 text-xs text-orange">{failed} check{failed > 1 ? "s" : ""} failed — warnings only; the verdict is your judgment.</p>
+      )}
+    </Card>
+  );
+}
+
+export function SubmissionsCard({ task, brief, scanned, login, itemUrl, subs, deadline, now }: {
+  task: Task;
+  /** the claim comment's brief hash (null until the identity scan runs) */
+  brief: string | null;
+  /** whether the identity scan finished and the login it found */
+  scanned: boolean; login: string | null;
+  itemUrl: string;
+  subs: {
+    submissions: SubmissionComment[] | null;
+    selectedId: number | null; setSelectedId: (n: number) => void;
+    claimedAt: bigint | null; error: string | null; busy: boolean; load: () => Promise<void>;
+  };
+  deadline: bigint; now: bigint;
+}) {
+  const briefItem = !scanned ? null
+    : !brief ? { label: "the claim line has a task brief", ok: false, note: "the claim is not bound to this task — PAY stays off" }
+    : { label: "claim brief matches the issue's task block", ok: brief === briefHashOf(task),
+        note: "the brief changed after the claim" };
+  const selected = subs.submissions?.find((s) => s.commentId === subs.selectedId) ?? null;
+  return (
+    <Card>
+      <SectionLabel>submission check — human-judged task</SectionLabel>
+      <p className="mt-2 text-sm text-gray">
+        Task: <span className="text-ink">{task.type}</span>. The bots abstain on human-judged
+        tasks — the verdict is your call, checked against the submission comments.
+      </p>
+      {briefItem && (
+        <p className={`mt-2 text-sm ${briefItem.ok ? "text-deep" : "text-orange"}`}>
+          {briefItem.ok ? "✓" : "✗"} {briefItem.label}{!briefItem.ok ? ` — ${briefItem.note}` : ""}
+        </p>
+      )}
+      {!scanned && (
+        <p className="mt-2 text-sm text-gray">Scan comments above first — submissions are matched to the claim comment's GitHub login.</p>
+      )}
+      {scanned && (
+        <button type="button" onClick={() => void subs.load()} disabled={subs.busy}
+          className={`mt-3 ${GHOST_BTN} px-3 py-2 text-sm`}>
+          {subs.busy ? "Scanning…" : "Find submissions"}
+        </button>
+      )}
+      {subs.error && <Alert>{subs.error}</Alert>}
+      {subs.submissions && subs.submissions.length === 0 && (
+        <p className="mt-2 text-sm text-gray">No postmark-submission lines from @{login ?? "the claimant"} on the issue.</p>
+      )}
+      {subs.submissions && subs.submissions.length > 0 && (
+        <ul className="mt-3 space-y-2 text-sm">
+          {subs.submissions.map((s) => (
+            <li key={s.commentId}>
+              <label className="flex flex-wrap items-center gap-2 cursor-pointer">
+                <input type="radio" name="submission" checked={subs.selectedId === s.commentId}
+                  onChange={() => subs.setSelectedId(s.commentId)} />
+                <a className="font-mono text-deep underline underline-offset-4" href={s.url} target="_blank" rel="noreferrer">
+                  {s.url.length > 60 ? `${s.url.slice(0, 57)}…` : s.url}
+                </a>
+                <a className={COMMENT_LINK} href={`${itemUrl}#issuecomment-${s.commentId}`} target="_blank" rel="noreferrer">comment</a>
+                <span className="text-gray">{new Date(Number(s.createdAt) * 1000).toLocaleString()}</span>
+                {s.edited && <span className="rounded-full bg-mustard/50 px-2 py-0.5 text-[10px] text-ink">edited after posting</span>}
+              </label>
+              {subs.selectedId === s.commentId && (
+                <ul className="mt-1 space-y-1 pl-6">
+                  {submissionCheckItems(s, subs.claimedAt, deadline, now).map((c) => (
+                    <li key={c.label} className={c.ok ? "text-deep" : "text-orange"}>
+                      {c.ok ? "✓" : "✗"} {c.label}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {selected === null && subs.submissions && subs.submissions.length > 1 && (
+        <p className="mt-2 text-xs text-gray">Pick the submission you're paying for.</p>
       )}
     </Card>
   );

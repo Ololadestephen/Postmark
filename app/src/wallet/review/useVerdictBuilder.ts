@@ -4,9 +4,11 @@ import { buildVerdictFor, OUTCOME, type BuiltVerdict } from "../../chain/verdict
 import { errorMessage } from "../../chain/errors";
 import { mergedAtSeconds } from "../../github/prcheck";
 import {
-  onchainEvidenceHashOf, payEvidenceHashOf, refundEvidenceHashOf, resolutionEvidenceHashOf, REFUND_REASONS,
+  onchainEvidenceHashOf, payEvidenceHashOf, refundEvidenceHashOf, resolutionEvidenceHashOf,
+  submissionEvidenceHashOf, REFUND_REASONS,
 } from "../../formats/hashes";
 import type { Task } from "../../github/task";
+import type { SubmissionComment } from "../../github/client";
 import type { Bounty } from "../../chain/client";
 import type { PrCheck } from "./usePrCheck";
 import type { ProofCheck } from "./useProofCheck";
@@ -18,8 +20,10 @@ export function useVerdictBuilder(args: {
   prCheck: PrCheck | null; disputeComment: DisputeComment | null;
   /** on-chain task bounties: the passing proof transaction */
   proof?: { task: Task; check: ProofCheck } | null;
+  /** human-judged task bounties: the selected submission comment */
+  submission?: { task: Task; submission: SubmissionComment } | null;
 }) {
-  const { id, bounty, phase, disputed, prCheck, disputeComment, proof } = args;
+  const { id, bounty, phase, disputed, prCheck, disputeComment, proof, submission } = args;
   const [refundReason, setRefundReason] = useState<string>(REFUND_REASONS[0]);
   const [refundUrl, setRefundUrl] = useState("");
   const [built, setBuilt] = useState<BuiltVerdict | null>(null);
@@ -40,6 +44,16 @@ export function useVerdictBuilder(args: {
           setBuilt(await buildVerdictFor({
             bountyId: id, bounty, phase, outcome: OUTCOME.PAY,
             evidenceHash: resolution(basis), mergedAt: ts,
+          }));
+          return;
+        }
+        if (submission) {
+          const basis = submissionEvidenceHashOf(
+            submission.task.type, submission.submission.commentId,
+            submission.submission.githubLogin, submission.submission.url, submission.submission.createdAt);
+          setBuilt(await buildVerdictFor({
+            bountyId: id, bounty, phase, outcome: OUTCOME.PAY,
+            evidenceHash: resolution(basis), mergedAt: submission.submission.createdAt,
           }));
           return;
         }
