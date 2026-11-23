@@ -43,6 +43,8 @@ describe("taskGate", () => {
     const call = { taskType: "onchain-call" as const, formTask: CALL,
       issue: { ...NO_QUERY, data: { body: taskBlockText(CALL) } as never } };
     expect(gate({ ...call, issue: { isPending: true, error: null } }).ok).toBe(false);
+    expect(gate({ ...call, issue: { isPending: false, error: new Error("rate limited") } }))
+      .toMatchObject({ ok: false, message: expect.stringMatching(/Can't read the issue/) });
     expect(gate({ ...call, code: { isPending: true, error: null } }).ok).toBe(false);
     expect(gate({ ...call, code: { isPending: false, error: null, data: "0x" } }))
       .toMatchObject({ ok: false, message: expect.stringMatching(/no code on diana/) });

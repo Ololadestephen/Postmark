@@ -11,6 +11,7 @@ const m = vi.hoisted(() => ({
   commentsError: null as Error | null,
   signerAddress: "", signerLive: true, signature: "0xabcd", verifyOk: true, keyLive: true,
   myKeyLive: true as boolean | undefined,
+  taskPending: false, taskError: null as string | null, taskRefetch: vi.fn(),
 }));
 
 vi.mock("wagmi", () => ({ useAccount: () => ({ address: m.address, isConnected: !!m.address }) }));
@@ -23,7 +24,7 @@ vi.mock("../../src/wallet/Readiness", () => ({ ReadinessChecklist: () => null })
 vi.mock("../../src/wallet/qorex", () => ({ useQorex: () => ({ canSignArbitrary: false, qorAddress: null, native: null }) }));
 vi.mock("../../src/hooks/queries", () => ({
   usePqcStatus: () => ({ data: m.myKeyLive === undefined ? undefined : { live: m.myKeyLive } }),
-  useBountyTask: () => ({ task: null, invalid: null, pending: false }),
+  useBountyTask: () => ({ task: null, invalid: null, pending: m.taskPending, error: m.taskError, refetch: m.taskRefetch }),
 }));
 vi.mock("../../src/github/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/github/client")>()),
@@ -58,6 +59,7 @@ beforeEach(() => {
   Object.assign(m, {
     address: CLAIMANT, comments: [], commentsError: null, signerAddress: CLAIMANT,
     signerLive: true, signature: "0xabcd", verifyOk: true, keyLive: true, myKeyLive: true,
+    taskPending: false, taskError: null,
   });
   vi.clearAllMocks();
 });
@@ -87,6 +89,22 @@ describe("ClaimPanel gating", () => {
     const soon = BigInt(Math.floor(Date.now() / 1000)) + 600n;
     render(<ClaimPanel id={7n} bounty={makeBounty({ deadline: soon, claimTimeout: 3600n })} meta={META} />);
     expect(screen.getByText(/no longer fits before the deadline/)).toBeInTheDocument();
+  });
+
+  it("waits for the issue brief instead of rendering a claim line", () => {
+    m.taskPending = true;
+    render(<ClaimPanel id={7n} bounty={bounty} meta={META} />);
+    expect(screen.getByText(/Loading the issue brief/)).toBeInTheDocument();
+    expect(screen.queryByText(/postmark-claim v1/)).toBeNull();
+  });
+
+  it("offers a retry when the issue cannot be read", () => {
+    m.taskError = "rate limited";
+    render(<ClaimPanel id={7n} bounty={bounty} meta={META} />);
+    expect(screen.getByText(/Couldn't read the issue from GitHub/)).toBeInTheDocument();
+    expect(screen.queryByText(/postmark-claim v1/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "retry" }));
+    expect(m.taskRefetch).toHaveBeenCalled();
   });
 });
 

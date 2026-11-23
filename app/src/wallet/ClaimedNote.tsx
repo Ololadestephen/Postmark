@@ -19,7 +19,9 @@ function Note({ id, bounty, meta }: { id?: bigint | undefined; bounty: Bounty; m
       <SectionLabel tone="accent">{label}</SectionLabel>
       <p className="mt-2 text-sm text-gray">
         {role === "claimant" ? (
-          task ? (
+          info.pending ? "Loading the issue brief…"
+          : info.error ? "Couldn't read the issue brief — reload to see your instructions."
+          : task ? (
             task.type === "onchain-call"
               ? <>Your claim is stamped on chain. Send the call to <span className="font-mono text-ink">{task.contract}{task.function ? ` · ${task.function}` : ""}</span> from <span className="font-mono text-ink">{shortAddr(bounty.payee)}</span>, then post <code className="font-mono text-ink">postmark-proof v1 tx=0x…</code> on the issue before the claim expires.</>
               : <>Your claim is stamped on chain. Deploy the contract from <span className="font-mono text-ink">{shortAddr(bounty.payee)}</span>, then post <code className="font-mono text-ink">postmark-proof v1 tx=0x…</code> on the issue before the claim expires.</>
@@ -27,9 +29,10 @@ function Note({ id, bounty, meta }: { id?: bigint | undefined; bounty: Bounty; m
             <>Your claim is stamped on chain. Open a pull request whose description says <code className="font-mono text-ink">{issue}</code> before the claim expires; the verifiers review it once it is merged.</>
           )
         ) : role === "funder" ? (
-          <>Claimed by <span className="font-mono text-ink">{shortAddr(bounty.payee)}</span>. The verifiers check once the claimant's {task ? "proof transaction lands" : "PR is merged"}; nothing for you to do unless the claim expires.</>
+          <>Claimed by <span className="font-mono text-ink">{shortAddr(bounty.payee)}</span>. The verifiers check once the claimant's {info.pending || info.error ? "work lands" : task ? "proof transaction lands" : "PR is merged"}; nothing for you to do unless the claim expires.</>
         ) : role === "verifier" ? (
           task ? "Claimed — you'll review once the proof transaction is posted."
+            : info.pending || info.error ? "Claimed — you'll review once the work is posted."
             : "Claimed — you'll review once the PR is merged."
         ) : (
           "This bounty is claimed and waiting on verifier verdicts."

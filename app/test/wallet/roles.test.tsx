@@ -6,6 +6,7 @@ import { CLAIMANT, FUNDER, META, VERIFIERS, makeBounty, ZERO_ADDR } from "../fix
 const m = vi.hoisted(() => ({
   address: undefined as string | undefined,
   task: null as { type: string; contract?: `0x${string}`; function?: string; codehash?: `0x${string}` } | null,
+  taskPending: false, taskError: null as string | null,
 }));
 vi.mock("wagmi", () => ({ useAccount: () => ({ address: m.address, isConnected: !!m.address }) }));
 vi.mock("../../src/wallet/WalletRoot", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
@@ -18,12 +19,12 @@ import PaidNote from "../../src/wallet/PaidNote";
 import PendingActions from "../../src/wallet/PendingActions";
 
 vi.mock("../../src/hooks/queries", () => ({
-  useBountyTask: () => ({ task: m.task, invalid: null, pending: false }),
+  useBountyTask: () => ({ task: m.task, invalid: null, pending: m.taskPending, error: m.taskError, refetch: () => {} }),
   useIndex: () => ({ data: undefined }),
 }));
 const view = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 const claimed = makeBounty({ state: 1, payee: CLAIMANT, claimRound: 1n, claimExpiresAt: 4_000_000_000n });
-beforeEach(() => { m.address = undefined; m.task = null; });
+beforeEach(() => { m.address = undefined; m.task = null; m.taskPending = false; m.taskError = null; });
 
 describe("bountyRole", () => {
   const b = makeBounty({ payee: CLAIMANT });
@@ -96,6 +97,14 @@ describe("claimed note", () => {
     }
     expect(text(FUNDER)).toMatch(/proof transaction lands/);
     expect(text(VERIFIERS[0])).toMatch(/proof transaction is posted/);
+  });
+  it("does not give the claimant PR instructions while the issue is loading or unreadable", () => {
+    m.taskPending = true;
+    expect(text(CLAIMANT)).toMatch(/Loading the issue brief/);
+    m.taskPending = false;
+    m.taskError = "rate limited";
+    expect(text(CLAIMANT)).toMatch(/Couldn't read the issue brief/);
+    expect(text(CLAIMANT)).not.toMatch(/Open a pull request/);
   });
 });
 

@@ -5,6 +5,7 @@ import { pqcKeyStatus, type PqcStatus } from "../chain/pqc";
 import { fetchEvmWindow } from "../chain/window";
 import { getAllComments, getIssue, getPull, type GhIssue, type GhPull } from "../github/client";
 import { parseTaskBlock, type Task } from "../github/task";
+import { errorMessage } from "../chain/errors";
 import type { BountyMeta } from "../chain/indexer";
 import { VERIFIER_REGISTRY } from "../chain/config";
 import { VERIFIERS } from "../data/verifiers";
@@ -98,20 +99,28 @@ export interface BountyTaskInfo {
   /** set when the issue carries a malformed task block */
   invalid: string | null;
   pending: boolean;
+  /** set when the issue could not be read from GitHub */
+  error: string | null;
+  refetch: () => void;
 }
 
 const EMPTY_ITEM = { ownerRepo: "", kind: 0, number: 0 } as const;
+const NO_TASK: Omit<BountyTaskInfo, "refetch"> = { task: null, invalid: null, pending: false, error: null };
 
 /** The task block in an issue's body (issue bounties only; PR bounties are always code). */
 export function useBountyTask(meta: BountyMeta | undefined): BountyTaskInfo {
   const issue = useGithubItem(meta ?? EMPTY_ITEM, { enabled: !!meta && meta.kind === 0 });
-  if (!meta || meta.kind !== 0) return { task: null, invalid: null, pending: false };
-  if (issue.isPending) return { task: null, invalid: null, pending: true };
-  if (issue.error || !issue.data) return { task: null, invalid: null, pending: false };
+  const refetch = () => { void issue.refetch(); };
+  if (!meta || meta.kind !== 0) return { ...NO_TASK, refetch };
+  if (issue.isPending) return { task: null, invalid: null, pending: true, error: null, refetch };
+  if (issue.error || !issue.data) {
+    return { task: null, invalid: null, pending: false,
+      error: issue.error ? errorMessage(issue.error) : "empty response", refetch };
+  }
   const parsed = parseTaskBlock((issue.data as GhIssue).body ?? null);
-  if (!parsed) return { task: null, invalid: null, pending: false };
-  if ("error" in parsed) return { task: null, invalid: parsed.error, pending: false };
-  return { task: parsed.task, invalid: null, pending: false };
+  if (!parsed) return { ...NO_TASK, refetch };
+  if ("error" in parsed) return { task: null, invalid: parsed.error, pending: false, error: null, refetch };
+  return { task: parsed.task, invalid: null, pending: false, error: null, refetch };
 }
 
 /** Latest block number, polled lightly; an error marks the network degraded. */

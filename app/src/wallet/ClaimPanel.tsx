@@ -65,6 +65,18 @@ function ClaimPanelBody({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta
     () => (address ? claimLine(id, address, ESCROW_ADDRESS, brief) : ""), [id, address, brief]);
 
   if (!address) return null;
+  if (taskInfo.pending) {
+    return <Card className="text-sm text-gray">Loading the issue brief…</Card>;
+  }
+  if (taskInfo.error) {
+    return (
+      <Card className="text-sm text-orange">
+        Couldn't read the issue from GitHub —{" "}
+        <button type="button" onClick={() => taskInfo.refetch()}
+          className="font-medium text-deep underline underline-offset-4">retry</button>
+      </Card>
+    );
+  }
   if (taskInfo.invalid) {
     return <Card className="text-sm text-orange">Can't claim this bounty: the issue's task block is invalid — {taskInfo.invalid}.</Card>;
   }
