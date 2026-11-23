@@ -1,10 +1,15 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 import { formatUnits, parseUnits } from "viem";
 import { useAccount } from "wagmi";
 import WalletRoot from "./WalletRoot";
 import { parseGithubUrl, githubItemLabel } from "../github/parse";
+import { taskBlockText, taskFromFields } from "../github/task";
+import { httpClient } from "../chain/client";
+import { useGithubItem } from "../hooks/queries";
 import { ItemPreview, VerifierInput } from "./createParts";
+import { TaskPicker, taskGate as taskGateFor, type PickerType } from "./createTask";
 import { VerifierPicker } from "./VerifierPicker";
 import { ReadinessChecklist } from "./Readiness";
 import { validateForm, verifierFieldError } from "../formats/createForm";
@@ -115,6 +120,21 @@ function CreateForm() {
   const show = (g: FieldGroup) => attempted || touched[g];
   const gref = useMemo(() => (url.trim() ? parseGithubUrl(url) : null), [url]);
   const urlTouched = url.trim().length > 0;
+  const [taskType, setTaskType] = useState<PickerType>("code");
+  const [taskFields, setTaskFields] = useState({ contract: "", function: "", codehash: "" });
+  const item = useGithubItem(gref ?? { ownerRepo: "", kind: 0, number: 0 }, { enabled: !!gref });
+  const formParsed = taskType === "code" ? null : taskFromFields(taskType, taskFields);
+  const formTask = formParsed && "task" in formParsed ? formParsed.task : null;
+  const contractCode = useQuery({
+    queryKey: ["gh-code", formTask?.contract],
+    queryFn: () => httpClient.getCode({ address: formTask!.contract! }),
+    enabled: !!formTask?.contract, staleTime: 30_000, retry: false,
+  });
+  const taskGate = taskGateFor({
+    taskType, gref, formTask,
+    formError: formParsed && "error" in formParsed ? formParsed.error : null,
+    issue: item, code: contractCode,
+  });
   const [amount, setAmount] = useState(DEFAULT_AMOUNT);
   const [rewardEdit, setRewardEdit] = useState<string | null>(null);
   const [bondEdit, setBondEdit] = useState<string | null>(null);
@@ -143,7 +163,7 @@ function CreateForm() {
 
   const submit = async () => {
     setAttempted(true);
-    if (!form.ok || !gref) return;
+    if (!form.ok || !gref || !taskGate.ok) return;
     const { shared, missing } = await checkKeys(form.parsed.verifiers);
     if (shared) {
       toast({ kind: "error", title: "Check your verifiers", text: "Two verifier slots share the same PQ key — each verifier needs their own." });
@@ -202,6 +222,13 @@ function CreateForm() {
               </p>
             )}
             {gref && <ItemPreview gref={gref} />}
+            {gref && (
+              <TaskPicker taskType={taskType} onType={setTaskType}
+                fields={taskFields} onFields={setTaskFields}
+                block={formTask ? taskBlockText(formTask) : null}
+                fieldError={formParsed && "error" in formParsed ? formParsed.error : null}
+                matchMessage={attempted || urlTouched ? taskGate.message : null} />
+            )}
           </Card>
 
           <Card>
@@ -341,7 +368,7 @@ function CreateForm() {
               <p className="mt-4 text-sm text-charcoal">Connect an EVM wallet to continue.</p>
             ) : (
               <button onClick={() => void submit()}
-                disabled={tx.busy}
+                disabled={tx.busy || !taskGate.ok}
                 className="mt-4 w-full rounded-lg bg-deep px-6 py-3 font-medium text-paper hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40">
                 {tx.state.phase === "wallet" ? "Confirm in wallet…"
                   : tx.state.phase === "submitted" || tx.state.phase === "confirming" ? "Confirming…"
