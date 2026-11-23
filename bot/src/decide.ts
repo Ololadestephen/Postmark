@@ -9,7 +9,8 @@ import { checkPull, closesIssue, mergedAtSeconds } from "../../app/src/github/pr
 import { githubItemUrl } from "../../app/src/github/parse";
 import { briefHashOf, parseTaskBlock, type Task } from "../../app/src/github/task";
 import {
-  checkOnchainProof, claimedAtFor, proofCheckPassed, type OnchainReader,
+  checkOnchainProof, claimedAtFor, proofCheckPassed, selectProof,
+  type OnchainReader, type PassingProof,
 } from "../../app/src/chain/onchainCheck";
 import type { GhPull } from "../../app/src/github/client";
 import {
@@ -128,6 +129,8 @@ async function judge(i: DecideInput, claim: ClaimComment, comments: GhComment[])
       }
       return judgeOnchain(i, claim, comments, parsed.task, issueState);
     }
+    // the claim bound a brief but the issue no longer carries a block
+    if (claim.brief) return abstain("the task block was removed after the claim");
     // no task block: an ordinary code bounty, judged by merged pull requests
     const linked = await gh.linkedPrs(meta.ownerRepo, meta.number);
     for (const l of linked) {
@@ -202,7 +205,7 @@ async function judgeOnchain(i: DecideInput, claim: ClaimComment, comments: GhCom
     }
   }
 
-  const passing: { txHash: Hex; at: bigint }[] = [];
+  const passing: PassingProof[] = [];
   for (const txHash of txHashes) {
     let check;
     try {
@@ -212,7 +215,8 @@ async function judgeOnchain(i: DecideInput, claim: ClaimComment, comments: GhCom
       return abstain(`chain read failed: ${e instanceof Error ? e.message : String(e)}`);
     }
     if (proofCheckPassed(check) && check.blockTimestamp !== null) {
-      passing.push({ txHash, at: check.blockTimestamp });
+      passing.push({ txHash, at: check.blockTimestamp,
+        evidenceHash: onchainEvidenceHashOf(task.type, txHash, check.blockTimestamp, b.payee) });
     }
   }
 
@@ -227,14 +231,10 @@ async function judgeOnchain(i: DecideInput, claim: ClaimComment, comments: GhCom
     }
     return abstain("no passing proof transaction yet");
   }
-  if (passing.length > 1) return abstain("several passing proof transactions");
-  const { txHash, at } = passing[0]!;
-  const evidenceHash = onchainEvidenceHashOf(task.type, txHash, at, b.payee);
-  if (i.takenEvidence?.some((h) => h.toLowerCase() === evidenceHash.toLowerCase())) {
-    return abstain("this proof was already used for another bounty");
-  }
+  const chosen = selectProof(passing, i.takenEvidence ?? []);
+  if (!chosen) return abstain("every passing proof was already used for another bounty");
   return {
-    kind: "pay", payee: b.payee, mergedAt: at, evidenceHash,
-    summary: `proof tx ${txHash.slice(0, 12)}… (${task.type})`,
+    kind: "pay", payee: b.payee, mergedAt: chosen.at, evidenceHash: chosen.evidenceHash,
+    summary: `proof tx ${chosen.txHash.slice(0, 12)}… (${task.type})`,
   };
 }

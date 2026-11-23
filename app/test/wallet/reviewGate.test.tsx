@@ -18,6 +18,7 @@ vi.mock("../../src/wallet/review/BundleCard", () => ({ BundleCard: () => null })
 vi.mock("../../src/hooks/queries", () => ({
   useBountyTask: () => ({ task: null, invalid: null, pending: false }),
   useIndex: () => ({ data: undefined }),
+  useBounties: () => ({ data: [] }),
 }));
 vi.mock("../../src/hooks/useTxAction", () => ({ useTxAction: () => ({ run: vi.fn(), state: { phase: "idle" } }) }));
 vi.mock("../../src/wallet/qorex", () => ({ useQorex: () => ({ canSignArbitrary: false, qorAddress: null }) }));

@@ -150,21 +150,27 @@ describe("decide: on-chain task bounties", () => {
     tx?: { from: string; to: string | null; input: Hex; blockNumber: bigint } | null;
     receipt?: { status: string; contractAddress: string | null; blockNumber: bigint } | null;
     ts?: bigint; codeHash?: Hex | null; fail?: boolean;
+    byHash?: Record<string, { tx?: FakeChain["tx"]; receipt?: FakeChain["receipt"] }>;
+    tsByBlock?: Record<string, bigint>;
   }
   const fakeReader = (f: FakeChain = {}): OnchainReader => {
     const boom = () => { if (f.fail) throw new Error("rpc down"); };
+    const defaultTx = { from: PAYEE, to: TARGET, input: `${functionSelector("register(bytes)")}${"00".repeat(32)}` as Hex, blockNumber: 9n };
+    const defaultReceipt = { status: "success", contractAddress: null, blockNumber: 9n };
     return {
-      async getTransaction() {
+      async getTransaction(hash) {
         boom();
-        return f.tx === undefined
-          ? { from: PAYEE, to: TARGET, input: `${functionSelector("register(bytes)")}${"00".repeat(32)}` as Hex, blockNumber: 9n }
-          : f.tx;
+        const o = f.byHash?.[hash.toLowerCase()];
+        if (o && "tx" in o) return o.tx ?? null;
+        return f.tx === undefined ? defaultTx : f.tx;
       },
-      async getTransactionReceipt() {
+      async getTransactionReceipt(hash) {
         boom();
-        return f.receipt === undefined ? { status: "success", contractAddress: null, blockNumber: 9n } : f.receipt;
+        const o = f.byHash?.[hash.toLowerCase()];
+        if (o && "receipt" in o) return o.receipt ?? null;
+        return f.receipt === undefined ? defaultReceipt : f.receipt;
       },
-      async getBlockTimestamp() { boom(); return f.ts ?? AT; },
+      async getBlockTimestamp(bn) { boom(); return f.tsByBlock?.[bn.toString()] ?? f.ts ?? AT; },
       async getCodeHash() { boom(); return f.codeHash === undefined ? CODEHASH : f.codeHash; },
     };
   };
@@ -221,12 +227,47 @@ describe("decide: on-chain task bounties", () => {
     ] }, callTask);
     expect(reason(d)).toMatch(/no passing proof/);
   });
-  it("abstains when two proofs pass", async () => {
+  it("pays the earliest of several passing proofs", async () => {
     const d = await taskRun({ comments: [
       comment(COMMENT_ID, "contributor", claimBody(7, PAYEE, 9800, ESCROW, briefHashOf(callTask))),
       comment(600, "contributor", `${proofBody(TX)}\n${proofBody(TX2)}`),
-    ] }, callTask);
-    expect(reason(d)).toMatch(/several passing/);
+    ] }, callTask, {
+      byHash: { [TX2]: {
+        tx: { from: PAYEE, to: TARGET, input: `${functionSelector("register(bytes)")}${"00".repeat(32)}` as Hex, blockNumber: 10n },
+        receipt: { status: "success", contractAddress: null, blockNumber: 10n } } },
+      tsByBlock: { "10": AT + 50n },
+    });
+    expect(d).toMatchObject({ kind: "pay", mergedAt: AT });
+    if (d.kind === "pay") expect(d.evidenceHash).toBe(onchainEvidenceHashOf("onchain-call", TX, AT, PAYEE));
+  });
+  it("pays the next passing proof when the earliest is already used", async () => {
+    const d = await taskRun({ comments: [
+      comment(COMMENT_ID, "contributor", claimBody(7, PAYEE, 9800, ESCROW, briefHashOf(callTask))),
+      comment(600, "contributor", `${proofBody(TX)}\n${proofBody(TX2)}`),
+    ] }, callTask, {
+      byHash: { [TX2]: {
+        tx: { from: PAYEE, to: TARGET, input: `${functionSelector("register(bytes)")}${"00".repeat(32)}` as Hex, blockNumber: 10n },
+        receipt: { status: "success", contractAddress: null, blockNumber: 10n } } },
+      tsByBlock: { "10": AT + 50n },
+    }, { takenEvidence: [onchainEvidenceHashOf("onchain-call", TX, AT, PAYEE)] });
+    expect(d).toMatchObject({ kind: "pay", mergedAt: AT + 50n });
+    if (d.kind === "pay") expect(d.evidenceHash).toBe(onchainEvidenceHashOf("onchain-call", TX2, AT + 50n, PAYEE));
+  });
+  it("abstains when the task block was removed after the claim", async () => {
+    const brief = briefHashOf(callTask);
+    const d = await run({
+      issue: { body: "a plain issue with no task block" },
+      comments: [comment(COMMENT_ID, "contributor", claimBody(7, PAYEE, 9800, ESCROW, brief))],
+      linked: linked1, pulls: pulls(),
+    });
+    expect(reason(d)).toMatch(/removed after the claim/);
+    // ...and a completed issue with someone else's merged PR still cannot refund
+    const d2 = await run({
+      issue: { body: "a plain issue with no task block", state: "closed", state_reason: "completed" },
+      comments: [comment(COMMENT_ID, "contributor", claimBody(7, PAYEE, 9800, ESCROW, brief))],
+      linked: linked1, pulls: pulls(goodPull({ user: { login: "stranger" } })),
+    });
+    expect(reason(d2)).toMatch(/removed after the claim/);
   });
   it("abstains when the proof is already used by another bounty", async () => {
     const d = await taskRun({}, callTask, {}, { takenEvidence: [onchainEvidenceHashOf("onchain-call", TX, AT, PAYEE)] });

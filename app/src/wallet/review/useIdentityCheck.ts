@@ -10,6 +10,8 @@ import type { BountyMeta } from "../../chain/indexer";
 
 export interface ClaimIdentity {
   login: string; commentId: bigint; hash: Hex; url: string; matches: boolean;
+  /** brief hash on the claim line, for on-chain task bounties */
+  brief?: string;
 }
 export interface DisputeComment { commentId: bigint; login: string; url: string }
 
@@ -46,7 +48,8 @@ export function useIdentityCheck(id: bigint, bounty: Bounty, meta: BountyMeta, d
         const hash = identityHashOf(c.githubLogin, bounty.payee, BigInt(c.commentId));
         setIdentity({ login: c.githubLogin, commentId: BigInt(c.commentId), hash,
           url: `${itemUrl}#issuecomment-${c.commentId}`,
-          matches: hash === bounty.payeeIdentityHash });
+          matches: hash === bounty.payeeIdentityHash,
+          ...(c.brief ? { brief: c.brief } : {}) });
       }
       setStatus("done");
     } catch (e) {

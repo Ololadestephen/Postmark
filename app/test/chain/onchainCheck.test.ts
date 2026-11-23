@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import type { Hex } from "viem";
 import {
-  checkOnchainProof, claimedAtFor, proofCheckPassed, type OnchainReader, type ProofCtx,
+  checkOnchainProof, claimedAtFor, proofCheckPassed, selectProof,
+  type OnchainReader, type PassingProof, type ProofCtx,
 } from "../../src/chain/onchainCheck";
+import { onchainEvidenceHashOf } from "../../src/formats/hashes";
 import { functionSelector, type Task } from "../../src/github/task";
 
 const PAYEE = "0x478F2A08a81be7CEa42bd34BD6900593fA56c4B6";
@@ -112,5 +114,25 @@ describe("claimedAtFor", () => {
     ], { getBlockTimestamp: async () => 777n })).toBe(777n);
     expect(await claimedAtFor(b, [{ claimRound: 1n, blockNumber: 10n }], reader())).toBeNull();
     expect(await claimedAtFor(b, [], reader())).toBeNull();
+  });
+});
+
+describe("selectProof", () => {
+  const TX_B = `0x${"bb".repeat(32)}` as Hex;
+  const proof = (txHash: Hex, at: bigint): PassingProof =>
+    ({ txHash, at, evidenceHash: onchainEvidenceHashOf("onchain-call", txHash, at, PAYEE) });
+  const a = proof(TX, 100n);
+  const b = proof(TX_B, 90n);
+  const b2 = proof(`0x${"cc".repeat(32)}` as Hex, 90n);
+
+  it("picks the earliest block timestamp, then the lowest tx hash", () => {
+    expect(selectProof([a, b], [])).toBe(b);
+    // b (0xbb…) and b2 (0xcc…) tie at 90n → the lower hash wins
+    expect(selectProof([b2, b, a], [])).toBe(b);
+    expect(selectProof([], [])).toBeNull();
+  });
+  it("skips proofs already used on another bounty", () => {
+    expect(selectProof([a, b], [b.evidenceHash])).toBe(a);
+    expect(selectProof([a, b], [a.evidenceHash, b.evidenceHash.toUpperCase()])).toBeNull();
   });
 });

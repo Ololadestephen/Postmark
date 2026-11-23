@@ -44,6 +44,7 @@ vi.mock("@qorechain/pqc", () => ({ mldsa87: { verify: () => m.verifyOk } }));
 vi.mock("../../src/hooks/queries", () => ({
   useBountyTask: () => ({ task: m.task, invalid: null, pending: false }),
   useIndex: () => ({ data: undefined }),
+  useBounties: () => ({ data: [] }),
 }));
 vi.mock("../../src/chain/onchainCheck", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/chain/onchainCheck")>()),
@@ -364,5 +365,14 @@ describe("ReviewPanel", () => {
     const evidence = onchainEvidenceHashOf("onchain-call", tx, 1_800_000_000n, CLAIMANT);
     expect((await screen.findByText(/evidenceHash/)).textContent).toContain(evidence);
     expect((await screen.findByText(/mergedAt/)).textContent).toContain("1800000000");
+  });
+
+  it("warns instead of the PR check when the task block was removed after the claim", async () => {
+    m.comments = [comment(11, "e2e-claimant",
+      claimLine(7n, CLAIMANT, ESCROW_ADDRESS, `0x${"aa".repeat(32)}` as `0x${string}`))];
+    render(<ReviewPanel id={7n} bounty={claimed} meta={META} />);
+    fireEvent.click(screen.getByRole("button", { name: "Scan comments" }));
+    expect(await screen.findByText(/removed after the claim/)).toBeInTheDocument();
+    expect(screen.queryByText("pull request check")).toBeNull();
   });
 });

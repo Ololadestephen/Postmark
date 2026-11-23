@@ -43,6 +43,8 @@ function ReviewTool({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta: Bo
   const taskInfo = useBountyTask(meta);
   const onchainTask = taskInfo.task && (taskInfo.task.type === "onchain-call" || taskInfo.task.type === "onchain-deploy")
     ? taskInfo.task : null;
+  // the claim bound a brief but the issue no longer parses to a task
+  const briefOrphaned = !taskInfo.pending && !taskInfo.error && !taskInfo.task && !!identity.identity?.brief;
   const proof = useProofCheck(id, bounty, onchainTask);
   const builder = useVerdictBuilder({
     id, bounty, phase, disputed, prCheck: pr.prCheck, disputeComment: identity.disputeComment,
@@ -76,7 +78,17 @@ function ReviewTool({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta: Bo
       <ClaimUnderReview bounty={bounty} disputed={disputed} />
       <IdentityCard meta={meta} disputed={disputed} status={identity.status} error={identity.error}
         identity={identity.identity} disputeComment={identity.disputeComment} onScan={() => void identity.scan()} />
-      {onchainTask ? <ProofCheckCard task={onchainTask} proof={proof} /> : <PrCheckCard meta={meta} pr={pr} />}
+      {onchainTask ? <ProofCheckCard task={onchainTask} proof={proof} />
+        : taskInfo.invalid || briefOrphaned ? (
+          <Card>
+            <SectionLabel>task block</SectionLabel>
+            <p className="mt-2 text-sm text-orange">
+              {taskInfo.invalid
+                ? <>The issue's task block is invalid — {taskInfo.invalid}. The bots will abstain; there is no PR check to run.</>
+                : <>The claim line carries a task brief but the issue has no task block now — the block was removed after the claim. The bots will abstain; there is no PR check to run.</>}
+            </p>
+          </Card>
+        ) : <PrCheckCard meta={meta} pr={pr} />}
       <DecisionCard disputed={disputed}
         canPay={(onchainTask ? !!proof.result && proof.result.blockTimestamp !== null : !!pr.prCheck) && canResolve} canResolve={canResolve}
         scanDone={identity.status === "done"} builder={builder} built={builder.built} />

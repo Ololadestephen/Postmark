@@ -78,6 +78,25 @@ export async function checkOnchainProof(
 
 export const proofCheckPassed = (c: ProofCheck) => c.items.every((i) => i.ok);
 
+export interface PassingProof {
+  txHash: Hex;
+  /** the proof transaction's block timestamp */
+  at: bigint;
+  evidenceHash: Hex;
+}
+
+/** The winning proof among passing ones: the earliest block timestamp, then the
+ * lowest tx hash. Proofs whose evidence hash is already used by another bounty
+ * are skipped; null means every passing proof is taken. Shared by the bot and
+ * the review tool so they cannot diverge. */
+export function selectProof(proofs: PassingProof[], takenEvidence: string[]): PassingProof | null {
+  const free = proofs.filter((p) =>
+    !takenEvidence.some((h) => h.toLowerCase() === p.evidenceHash.toLowerCase()));
+  if (free.length === 0) return null;
+  return free.reduce((a, b) =>
+    b.at < a.at || (b.at === a.at && b.txHash.toLowerCase() < a.txHash.toLowerCase()) ? b : a);
+}
+
 /** The claim time for a proof: from the bounty when the claim is live, else the
  * latest Claimed event's block (e.g. a frozen dispute). null when unknowable. */
 export async function claimedAtFor(
