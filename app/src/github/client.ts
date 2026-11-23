@@ -76,14 +76,15 @@ async function ghFetch<T>(url: string, maxAgeMs = 0): Promise<T> {
 }
 
 export {
-  findClaimComments, findDisputeComments, linkedPrNumbers,
-  type ClaimComment, type DisputeComment, type GhComment, type GhTimelineEvent,
+  findClaimComments, findDisputeComments, findProofComments, linkedPrNumbers,
+  type ClaimComment, type DisputeComment, type GhComment, type GhTimelineEvent, type ProofComment,
 } from "./comments";
 
 const API = "https://api.github.com";
 
 export interface GhIssue {
   number: number; title: string; state: string; html_url: string;
+  body?: string | null;
   user: { login: string }; labels: { name: string }[];
   created_at: string; pull_request?: unknown;
 }

@@ -22,11 +22,13 @@ export function linkedPrNumbers(events: GhTimelineEvent[]): number[] {
 }
 
 const CLAIM_RE =
-  /postmark-claim\s+v1\s+chain=(\d+)\s+escrow=(0x[0-9a-f]{40})\s+bounty=(\d+)\s+claimant=(0x[0-9a-f]{40})/i;
+  /postmark-claim\s+v1\s+chain=(\d+)\s+escrow=(0x[0-9a-f]{40})\s+bounty=(\d+)\s+claimant=(0x[0-9a-f]{40})(?:\s+brief=(0x[0-9a-f]{64}))?/i;
 
 export interface ClaimComment {
   commentId: number; githubLogin: string;
   chainId: number; escrow: string; bountyId: number; claimant: string;
+  /** brief hash for on-chain task bounties; absent on ordinary claim lines */
+  brief?: string;
 }
 
 const DISPUTE_RE =
@@ -62,7 +64,25 @@ export function findClaimComments(comments: GhComment[]): ClaimComment[] {
         commentId: c.id, githubLogin: c.user.login.toLowerCase(),
         chainId: Number(m[1]), escrow: m[2]!.toLowerCase(),
         bountyId: Number(m[3]), claimant: m[4]!.toLowerCase(),
+        ...(m[5] ? { brief: m[5].toLowerCase() } : {}),
       });
+    }
+  }
+  return out;
+}
+
+const PROOF_RE = /postmark-proof\s+v1\s+tx=(0x[0-9a-f]{64})/gi;
+
+export interface ProofComment {
+  commentId: number; githubLogin: string; txHash: string;
+}
+
+/** Comments matching the SPEC on-chain proof line (every occurrence in a body counts). */
+export function findProofComments(comments: GhComment[]): ProofComment[] {
+  const out: ProofComment[] = [];
+  for (const c of comments) {
+    for (const m of c.body?.matchAll(PROOF_RE) ?? []) {
+      out.push({ commentId: c.id, githubLogin: c.user.login.toLowerCase(), txHash: m[1]!.toLowerCase() });
     }
   }
   return out;

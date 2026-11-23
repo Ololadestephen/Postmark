@@ -28,6 +28,16 @@ export function payEvidenceHashOf(
       mergeCommitSha.toLowerCase(), BigInt(mergedAt), prAuthorLogin.toLowerCase()]));
 }
 
+/** PAY evidence for on-chain task bounties: the proof transaction. mergedAt = its block timestamp. */
+export function onchainEvidenceHashOf(
+  type: string, txHash: Hex, blockTimestamp: bigint | number, claimant: `0x${string}`,
+): Hex {
+  return keccak256(encodeAbiParameters(
+    [{ type: "string" }, { type: "string" }, { type: "bytes32" },
+      { type: "uint64" }, { type: "address" }],
+    ["postmark-onchain-v1", type, txHash, BigInt(blockTimestamp), claimant]));
+}
+
 export const REFUND_REASONS = ["not-merged", "ineligible", "identity-mismatch", "withdrawn", "other"] as const;
 export type RefundReason = (typeof REFUND_REASONS)[number];
 
