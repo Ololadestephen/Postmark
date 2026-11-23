@@ -512,8 +512,9 @@ line carries an extra field `brief=0x<64 hex>` where
 `brief = keccak256(abi.encode("postmark-brief-v1", string canonicalText))` and `canonicalText` is the
 canonical key-ordered rendering of the task (comments and whitespace do not change it; any field
 change does). The claimant proves the work with one comment per transaction:
-`postmark-proof v1 tx=0x<64 hex>`. Bots PAY when exactly one distinct proof transaction posted by the
-claimant's GitHub login passes every check: the transaction exists and succeeded, `tx.from` is the
+`postmark-proof v1 tx=0x<64 hex>`. Bots PAY the passing proof transaction posted by the
+claimant's GitHub login with the earliest block timestamp (ties break to the lowest tx hash): the
+transaction exists and succeeded, `tx.from` is the
 payee, its block timestamp is at or after the claim time and at or before the deadline, and for
 `onchain-call` `tx.to` is the task contract (plus a calldata-prefix match on the `function` selector,
 first 4 bytes of `keccak256(signature)`, when given) — for `onchain-deploy` `tx.to` is null with a
@@ -522,7 +523,8 @@ receipt `contractAddress` (plus a runtime-codehash match when `codehash` is give
 `Claimed` event for the bounty and round. PAY evidence is
 `keccak256(abi.encode("postmark-onchain-v1", string type, bytes32 txHash, uint64 blockTimestamp,
 address claimant))` with `mergedAt` = the transaction's block timestamp. A proof tx already used as
-`initialEvidenceHash` on another bounty does not count again. Any RPC failure or ambiguity is an
+`initialEvidenceHash` on another bounty is skipped; bots abstain only when every passing proof is
+taken. Any RPC failure or ambiguity is an
 abstention, never a REFUND; the `not_planned` withdrawn refund still applies.
 
 **Verdict bundle.** Verifiers sign separately and pass a JSON bundle along (file or paste):
