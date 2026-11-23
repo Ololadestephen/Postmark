@@ -85,6 +85,27 @@ There is no dispute timeout and no admin override. If two verifiers vanish, disp
 - **Identity:** a claim proves key control, not GitHub ownership. `identityHash` commits to public evidence that verifiers check off chain.
 - **Near the deadline:** a claim needs the whole timeout to fit before the deadline, so a bounty can become unclaimable shortly before it expires. This is by design and shown in the UI.
 
+### T-12 On-chain task bounties
+Issue bounties whose work is a diana transaction (`postmark-task` block in the issue body).
+- **Brief edited after the claim:** the funder (issue owner) can rewrite the task block at any time.
+  The claim line binds `brief = keccak256(abi.encode("postmark-brief-v1", canonicalText))`, so an
+  edited brief no longer matches and the bots abstain — a changed brief can stall a payout, never
+  steal one. Human verifiers and the dispute path decide contested cases. The claimant can also edit
+  their own claim comment, but only to their own detriment: the comment id is bound into
+  `identityHash`, and a fresh comment re-binds identity anyway.
+- **Old transaction reuse:** a claimant cannot point at work done before the claim — the proof's
+  block timestamp must be at or after the claim time. The same proof cannot pay two bounties:
+  `initialEvidenceHash` commits to the tx hash, and bots abstain when another bounty already used it.
+- **Indirect calls:** the task checks `tx.from` and `tx.to` on the outer transaction only, so a call
+  routed through another contract (or a factory deploy) does not count. This is deliberate: the
+  check verifies "the claimant's account sent this transaction", nothing deeper.
+- **Meaning of the check:** the on-chain checks prove a transaction happened, not that it was
+  useful. A junk `onchain-call` to the right contract passes — the task brief is the funder's
+  responsibility, and disputes remain the recourse for junk work.
+- **RPC dependence:** proof checking needs reads the GitHub checks do not (transaction, receipt,
+  block, code). Every failure mode abstains rather than refunds, so a flaky node delays a verdict
+  but cannot reverse it.
+
 ## Out of scope for v1
 GitHub identity proofs, claim bonds, protocol fees and treasury, ERC20 or multi-asset bounties (see SPEC.md Future work), upgrades or admin roles, mainnet deployment.
 

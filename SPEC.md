@@ -496,6 +496,35 @@ with `reasonCode` one of `not-merged`, `ineligible`, `identity-mismatch`, `withd
 **Resolution evidence.** `keccak256(abi.encode("postmark-resolution-v1", uint256 disputeCommentId,
 bytes32 basisHash))`, where `basisHash` is a PAY or REFUND evidence hash in the formats above.
 
+**On-chain task bounties.** An issue (kind 0) may carry exactly one fenced block with info string
+`postmark-task` in its body; an issue with none is an ordinary code bounty. The block is `key: value`
+lines (`#` comments and blank lines ignored, keys `type`, `contract`, `function`, `codehash` only):
+
+```
+type: onchain-call | onchain-deploy | testing | url
+contract: 0x<40 hex>        # required for onchain-call, forbidden otherwise
+function: name(types)     # optional, onchain-call only; no spaces or parameter names
+codehash: 0x<64 hex>      # optional, onchain-deploy only; keccak256 of the runtime bytecode
+```
+
+`testing` and `url` parse but are not auto-judged yet (bots abstain). For on-chain types the claim
+line carries an extra field `brief=0x<64 hex>` where
+`brief = keccak256(abi.encode("postmark-brief-v1", string canonicalText))` and `canonicalText` is the
+canonical key-ordered rendering of the task (comments and whitespace do not change it; any field
+change does). The claimant proves the work with one comment per transaction:
+`postmark-proof v1 tx=0x<64 hex>`. Bots PAY when exactly one distinct proof transaction posted by the
+claimant's GitHub login passes every check: the transaction exists and succeeded, `tx.from` is the
+payee, its block timestamp is at or after the claim time and at or before the deadline, and for
+`onchain-call` `tx.to` is the task contract (plus a calldata-prefix match on the `function` selector,
+first 4 bytes of `keccak256(signature)`, when given) — for `onchain-deploy` `tx.to` is null with a
+receipt `contractAddress` (plus a runtime-codehash match when `codehash` is given). The claim time is
+`claimExpiresAt − claimTimeout` while the claim is live, else the block timestamp of the latest
+`Claimed` event for the bounty and round. PAY evidence is
+`keccak256(abi.encode("postmark-onchain-v1", string type, bytes32 txHash, uint64 blockTimestamp,
+address claimant))` with `mergedAt` = the transaction's block timestamp. A proof tx already used as
+`initialEvidenceHash` on another bounty does not count again. Any RPC failure or ambiguity is an
+abstention, never a REFUND; the `not_planned` withdrawn refund still applies.
+
 **Verdict bundle.** Verifiers sign separately and pass a JSON bundle along (file or paste):
 `{"format":"postmark-verdict-bundle-v1","chainId":9800,"nativeChainId":"qorechain-diana",
 "escrow":"0x…","verdict":{…all Verdict fields…},"evidence":{"format":"…","fields":{…}},
