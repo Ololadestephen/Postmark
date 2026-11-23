@@ -9,7 +9,7 @@ import { taskBlockText, taskFromFields } from "../github/task";
 import { httpClient } from "../chain/client";
 import { useGithubItem } from "../hooks/queries";
 import { ItemPreview, VerifierInput } from "./createParts";
-import { TaskPicker, taskGate as taskGateFor, type PickerType } from "./createTask";
+import { TaskPicker, taskGate as taskGateFor, humanTaskVerifierError, type PickerType } from "./createTask";
 import { VerifierPicker } from "./VerifierPicker";
 import { ReadinessChecklist } from "./Readiness";
 import { validateForm, verifierFieldError } from "../formats/createForm";
@@ -155,6 +155,7 @@ function CreateForm() {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [verifiers, setVerifiers] = useState(["", "", ""]);
   const { keyStates, clearKeyState, checkingKeys, checkKeys } = useVerifierKeyCheck();
+  const verifierTaskError = humanTaskVerifierError(taskType, verifiers);
 
   const form = validateForm({
     amount, reward, bond, deadlineLocal, claimTimeoutSec,
@@ -326,6 +327,9 @@ function CreateForm() {
                       }} />
                   ))}
                 </VerifierPicker>
+                {verifierTaskError && (
+                  <p role="alert" className="mt-2 text-sm text-orange">{verifierTaskError}</p>
+                )}
               </div>
             </fieldset>
           </Card>
@@ -368,7 +372,7 @@ function CreateForm() {
               <p className="mt-4 text-sm text-charcoal">Connect an EVM wallet to continue.</p>
             ) : (
               <button onClick={() => void submit()}
-                disabled={tx.busy || !taskGate.ok}
+                disabled={tx.busy || !taskGate.ok || !!verifierTaskError}
                 className="mt-4 w-full rounded-lg bg-deep px-6 py-3 font-medium text-paper hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40">
                 {tx.state.phase === "wallet" ? "Confirm in wallet…"
                   : tx.state.phase === "submitted" || tx.state.phase === "confirming" ? "Confirming…"

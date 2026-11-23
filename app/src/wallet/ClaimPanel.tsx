@@ -200,7 +200,7 @@ function ClaimPanelBody({ id, bounty, meta }: { id: bigint; bounty: Bounty; meta
             <h3 className="font-semibold tracking-tight">Post your claim line</h3>
           </div>
           <p className="mt-2 text-sm text-charcoal">
-            Comment this exact line on the issue, from the GitHub account that will {taskInfo.task ? "send the proof transaction" : "open the PR"}.{" "}
+            Comment this exact line on the issue, from the GitHub account that will {taskInfo.task ? (taskInfo.task.type === "testing" || taskInfo.task.type === "url" ? "post the submission" : "send the proof transaction") : "open the PR"}.{" "}
             <a className="font-medium text-deep underline underline-offset-4" href={itemUrl} target="_blank" rel="noreferrer">
               Open the issue to comment
             </a>{" "}

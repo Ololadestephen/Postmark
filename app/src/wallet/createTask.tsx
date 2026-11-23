@@ -5,8 +5,10 @@ import type { Task } from "../github/task";
 import { taskIssueMatch } from "../github/task";
 import type { GhIssue, GhPull } from "../github/client";
 import type { GithubRef } from "../github/parse";
+import { humanTasksEnabled } from "../flags";
+import { VERIFIERS } from "../data/verifiers";
 
-export type PickerType = "code" | "onchain-call" | "onchain-deploy";
+export type PickerType = "code" | "onchain-call" | "onchain-deploy" | "testing" | "url";
 
 /** Whether the form may fund: for on-chain tasks the issue body must carry the
  * matching task block, and an onchain-call contract must have code on diana. */
@@ -34,10 +36,27 @@ export function taskGate(args: {
   return { ok: true, message: null };
 }
 
-const TYPES: { id: PickerType; label: string }[] = [
+const CURATED_BOTS = new Set(
+  VERIFIERS.filter((v) => v.kind === "bot").map((v) => v.address.toLowerCase()));
+
+/** testing/url bounties are judged by people: at most one of the three verifier
+ * slots may name a curated bot (self-listed and custom addresses count as human). */
+export function humanTaskVerifierError(taskType: PickerType, verifiers: string[]): string | null {
+  if (taskType !== "testing" && taskType !== "url") return null;
+  const bots = verifiers.filter((v) => CURATED_BOTS.has(v.toLowerCase())).length;
+  return bots >= 2
+    ? "Testing and URL bounties are judged by people: pick at least two human verifiers. The Postmark bots can't judge them and would abstain."
+    : null;
+}
+
+const BASE_TYPES: { id: PickerType; label: string }[] = [
   { id: "code", label: "Code" },
   { id: "onchain-call", label: "On-chain call" },
   { id: "onchain-deploy", label: "On-chain deploy" },
+];
+const HUMAN_TYPES: { id: PickerType; label: string }[] = [
+  { id: "testing", label: "Testing" },
+  { id: "url", label: "URL deliverable" },
 ];
 
 const chip = (on: boolean) =>
@@ -70,7 +89,7 @@ export function TaskPicker({ taskType, onType, fields, onFields, block, fieldErr
     <div className="mt-4 border-t border-ink/10 pt-4">
       <span className={label}>Task type</span>
       <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Task type">
-        {TYPES.map((t) => (
+        {(humanTasksEnabled() ? [...BASE_TYPES, ...HUMAN_TYPES] : BASE_TYPES).map((t) => (
           <button key={t.id} type="button" aria-pressed={taskType === t.id} onClick={() => onType(t.id)}
             className={chip(taskType === t.id)}>
             {t.label}
@@ -107,6 +126,13 @@ export function TaskPicker({ taskType, onType, fields, onFields, block, fieldErr
               placeholder="0x… keccak256 of the deployed code" className={input} />
           </label>
         </div>
+      )}
+
+      {taskType === "testing" && (
+        <p className="mt-2 text-xs text-gray">The claimant posts their test report on the issue. Human verifiers read it and decide.</p>
+      )}
+      {taskType === "url" && (
+        <p className="mt-2 text-xs text-gray">The claimant posts a link to the deliverable on the issue. Human verifiers check it and decide.</p>
       )}
 
       {taskType !== "code" && (
