@@ -1,12 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CLAIMANT, FUNDER, META, VERIFIERS, makeBounty, ZERO_ADDR } from "../fixtures";
 
 const m = vi.hoisted(() => ({
   address: undefined as string | undefined,
   task: null as { type: string; contract?: `0x${string}`; function?: string; codehash?: `0x${string}` } | null,
   taskPending: false, taskError: null as string | null,
+  credits: [5n, 0n] as [bigint, bigint],
+}));
+vi.mock("../../src/chain/client", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  creditOf: vi.fn(async () => m.credits),
 }));
 vi.mock("wagmi", () => ({ useAccount: () => ({ address: m.address, isConnected: !!m.address }) }));
 vi.mock("../../src/wallet/WalletRoot", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
@@ -23,9 +29,10 @@ vi.mock("../../src/hooks/queries", () => ({
   useBountyTask: () => ({ task: m.task, invalid: null, pending: m.taskPending, error: m.taskError, refetch: () => {} }),
   useIndex: () => ({ data: undefined }),
 }));
-const view = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
+const view = (ui: React.ReactElement) =>
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter>{ui}</MemoryRouter></QueryClientProvider>);
 const claimed = makeBounty({ state: 1, payee: CLAIMANT, claimRound: 1n, claimExpiresAt: 4_000_000_000n });
-beforeEach(() => { m.address = undefined; m.task = null; m.taskPending = false; m.taskError = null; });
+beforeEach(() => { m.credits = [5n, 0n]; m.address = undefined; m.task = null; m.taskPending = false; m.taskError = null; });
 afterEach(() => vi.unstubAllEnvs());
 
 describe("bountyRole", () => {
@@ -175,10 +182,17 @@ describe("pending actions", () => {
 });
 
 describe("paid note", () => {
-  it("links the claimant to the Dashboard", () => {
+  it("links the claimant to the Dashboard", async () => {
     m.address = CLAIMANT;
     view(<PaidNote bounty={makeBounty({ state: 4, payee: CLAIMANT })} />);
-    expect(screen.getByRole("link", { name: /Withdraw from your Dashboard|withdraw from your Dashboard/ })).toHaveAttribute("href", "/me");
+    expect(await screen.findByRole("link", { name: /withdraw from your Dashboard/ })).toHaveAttribute("href", "/me");
+  });
+  it("drops the withdraw link once the claimant has nothing left", async () => {
+    m.address = CLAIMANT;
+    m.credits = [0n, 0n];
+    view(<PaidNote bounty={makeBounty({ state: 4, payee: CLAIMANT })} />);
+    expect(await screen.findByText(/You were paid and have withdrawn everything/)).toBeInTheDocument();
+    expect(screen.queryByRole("link")).toBeNull();
   });
   it("shows nothing to others", () => {
     m.address = FUNDER;

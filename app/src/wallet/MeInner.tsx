@@ -27,9 +27,15 @@ function Credits() {
   const pqc = usePqcStatus(address);
   const tx = useTxAction();
   const toast = useToast();
+  const [withdrawnFrom, setWithdrawnFrom] = useState<bigint | null>(null);
+  const total = credits.data ? credits.data[0] + credits.data[1] : 0n;
+  if (withdrawnFrom !== null && credits.data && total === 0n) setWithdrawnFrom(null);
+  const done = () => { setWithdrawnFrom(total); toast({ kind: "success", title: "Withdrawn", text: "The QOR is on its way to your wallet." }); };
   if (!address) return null;
   if (credits.isPending) return <Skeleton className="h-28" />;
   const [ungated, gated] = credits.data ?? [0n, 0n];
+  const withdrawn = withdrawnFrom !== null && withdrawnFrom === total;
+  if (withdrawn && credits.isFetching) return <Skeleton className="h-28" />;
   if (ungated === 0n && gated === 0n) {
     return (
       <div className="rounded-2xl border border-ink/10 bg-white p-6">
@@ -43,16 +49,14 @@ function Credits() {
       <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-paper/60">withdrawable</div>
       <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
         <Qor wei={ungated + gated} className="text-4xl font-semibold tabular-nums tracking-tight" />
-        <button disabled={tx.busy}
-          onClick={() => void tx.run({ functionName: "withdraw", args: [],
-            onConfirmed: () => toast({ kind: "success", title: "Withdrawn", text: "The QOR is on its way to your wallet." }) })}
+        <button disabled={tx.busy || withdrawn}
+          onClick={() => void tx.run({ functionName: "withdraw", args: [], invalidates: [["credits", address]], onConfirmed: done })}
           className="rounded-lg bg-lime px-6 py-2.5 text-sm font-semibold text-ink hover:brightness-95 disabled:opacity-40">
           Withdraw
         </button>
       </div>
-      <NativeSend tone="dark" call={{ functionName: "withdraw", args: [] }} sender={address} label="Withdraw with QoreX" disabled={tx.busy}
-        invalidates={[["credits", address]]}
-        onConfirmed={() => toast({ kind: "success", title: "Withdrawn", text: "The QOR is on its way to your wallet." })} />
+      <NativeSend tone="dark" call={{ functionName: "withdraw", args: [] }} sender={address} label="Withdraw with QoreX" disabled={tx.busy || withdrawn}
+        invalidates={[["credits", address]]} onConfirmed={done} />
       <dl className="mt-4 flex gap-8 border-t border-paper/10 pt-4 text-sm">
         <div>
           <dt className="font-mono text-[10px] uppercase tracking-[0.18em] text-paper/60">ungated</dt>

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { CLAIMANT, FUNDER, META, VERIFIERS, makeBounty, renderApp } from "../fixtures";
 
 const m = vi.hoisted(() => ({
@@ -101,6 +101,17 @@ describe("MeInner", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Withdraw" }));
     expect(m.run).toHaveBeenCalledWith(expect.objectContaining({ functionName: "withdraw", args: [] }));
     expect(screen.getByText(/Payee-gated credit withdraws only while/)).toBeInTheDocument();
+  });
+
+  it("refreshes credits after a withdraw and locks the button until they change", async () => {
+    m.credits = [5n, 7n];
+    withIndex([]);
+    renderApp(<MeInner />);
+    fireEvent.click(await screen.findByRole("button", { name: "Withdraw" }));
+    const req = m.run.mock.calls.at(-1)![0] as { invalidates: unknown[][]; onConfirmed: () => void };
+    expect(req.invalidates).toContainEqual(["credits", CLAIMANT]);
+    act(() => req.onConfirmed());
+    expect(screen.getByRole("button", { name: "Withdraw" })).toBeDisabled();
   });
 
   it("warns when gated credit cannot be withdrawn without a live key", async () => {
